@@ -9,6 +9,7 @@ import type { Brand } from "../schema";
 import { BODY, DISPLAY } from "../fonts";
 import { EASE_OUT_EXPO, drift, punchIn, snappy } from "../motion";
 import { FRAMES_PER_BEAT, bars } from "../beat";
+import { Grain, GridDots, GlowOrb, Vignette } from "../fx";
 
 // Pain lines stack up one per beat, then all get struck through at once.
 export const PainScene: React.FC<{
@@ -21,14 +22,22 @@ export const PainScene: React.FC<{
   const strikeStart = bars(1) + FRAMES_PER_BEAT;
 
   return (
-    <AbsoluteFill
-      style={{
-        backgroundColor: brand.colors.background,
-        justifyContent: "center",
-        transform: `scale(${punchIn(frame) * drift(frame, duration)})`,
-      }}
-    >
-      <div style={{ padding: "0 160px" }}>
+    <AbsoluteFill style={{ backgroundColor: brand.colors.background }}>
+      <AbsoluteFill
+        style={{
+          justifyContent: "center",
+          transform: `scale(${punchIn(frame) * drift(frame, duration)})`,
+        }}
+      >
+        <GlowOrb
+          color={brand.colors.accent}
+          x="88%"
+          y="-8%"
+          size={1100}
+          opacity={0.1}
+        />
+        <GridDots color={brand.colors.foreground} opacity={0.04} />
+        <div style={{ padding: "0 160px", zIndex: 1 }}>
         <div
           style={{
             fontFamily: BODY,
@@ -87,7 +96,10 @@ export const PainScene: React.FC<{
             </div>
           );
         })}
-      </div>
+        </div>
+      </AbsoluteFill>
+      <Vignette strength={0.55} />
+      <Grain />
     </AbsoluteFill>
   );
 };

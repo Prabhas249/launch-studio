@@ -4,6 +4,7 @@ import type { Brand, Script } from "../schema";
 import { BODY, DISPLAY } from "../fonts";
 import { drift, punchIn, snappy } from "../motion";
 import { SCENE_BARS, bars } from "../beat";
+import { Grain, GridDots, GlowOrb, LightSweep, Vignette } from "../fx";
 
 // One feature per bar-and-a-half, full screen, cut on the beat.
 export const FeatureScene: React.FC<{
@@ -47,14 +48,39 @@ const FeatureCard: React.FC<{
   const detailIn = snappy(frame, fps, 8);
 
   return (
-    <AbsoluteFill
-      style={{
-        backgroundColor: brand.colors.background,
-        justifyContent: "center",
-        transform: `scale(${punchIn(frame) * drift(frame, duration, 0.03)})`,
-      }}
-    >
-      <div style={{ padding: "0 160px" }}>
+    <AbsoluteFill style={{ backgroundColor: brand.colors.background }}>
+      <AbsoluteFill
+        style={{
+          justifyContent: "center",
+          transform: `scale(${punchIn(frame) * drift(frame, duration, 0.03)})`,
+        }}
+      >
+        <GlowOrb
+          color={brand.colors.accent}
+          x={index % 2 === 0 ? "94%" : "6%"}
+          y="80%"
+          size={1200}
+          opacity={0.12}
+        />
+        <GridDots color={brand.colors.foreground} opacity={0.04} />
+        {/* Ghost numeral */}
+        <div
+          style={{
+            position: "absolute",
+            right: -40,
+            top: "50%",
+            transform: `translateY(-50%) translateX(${(1 - numberIn) * 120}px)`,
+            fontFamily: DISPLAY,
+            fontWeight: 800,
+            fontSize: 720,
+            lineHeight: 1,
+            color: brand.colors.accent,
+            opacity: numberIn * 0.07,
+          }}
+        >
+          {index + 1}
+        </div>
+        <div style={{ padding: "0 160px", zIndex: 1 }}>
         <div
           style={{
             fontFamily: BODY,
@@ -99,7 +125,11 @@ const FeatureCard: React.FC<{
         >
           {detail}
         </div>
-      </div>
+        </div>
+      </AbsoluteFill>
+      <LightSweep start={10} opacity={0.08} />
+      <Vignette strength={0.55} />
+      <Grain />
     </AbsoluteFill>
   );
 };

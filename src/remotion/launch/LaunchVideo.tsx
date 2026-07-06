@@ -2,6 +2,7 @@ import React from "react";
 import { AbsoluteFill, Series } from "remotion";
 import type { LaunchVideoProps } from "./schema";
 import { SCENE_BARS, bars } from "./beat";
+import { AudioTrack } from "./AudioTrack";
 import { HookScene } from "./scenes/HookScene";
 import { PainScene } from "./scenes/PainScene";
 import { RevealScene } from "./scenes/RevealScene";
@@ -18,6 +19,7 @@ export const launchVideoDuration = (props: LaunchVideoProps) =>
 export const LaunchVideo: React.FC<LaunchVideoProps> = ({ brand, script }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.background }}>
+      <AudioTrack props={{ brand, script }} />
       <Series>
         <Series.Sequence durationInFrames={bars(SCENE_BARS.hook)}>
           <HookScene

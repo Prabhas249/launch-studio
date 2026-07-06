@@ -8,6 +8,8 @@ import {
 import type { Brand } from "../schema";
 import { BODY, DISPLAY } from "../fonts";
 import { pop, snappy } from "../motion";
+import { FRAMES_PER_BEAT } from "../beat";
+import { Grain, Vignette } from "../fx";
 
 // End card: background flips to accent, name pops, domain pill, ring pulse.
 export const CTAScene: React.FC<{
@@ -21,13 +23,6 @@ export const CTAScene: React.FC<{
   const nameIn = pop(frame, fps, 2);
   const ctaIn = snappy(frame, fps, 10);
   const pillIn = snappy(frame, fps, 16);
-  const ring = interpolate(frame, [8, duration], [0.9, 2.2], {
-    extrapolateLeft: "clamp",
-  });
-  const ringFade = interpolate(frame, [8, duration - 10], [0.5, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
 
   return (
     <AbsoluteFill
@@ -37,17 +32,34 @@ export const CTAScene: React.FC<{
         alignItems: "center",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          width: 700,
-          height: 700,
-          borderRadius: "50%",
-          border: `2px solid ${brand.colors.background}`,
-          opacity: ringFade,
-          transform: `scale(${ring})`,
-        }}
-      />
+      {/* One ring fired per beat, expanding and fading */}
+      {Array.from({ length: Math.ceil(duration / FRAMES_PER_BEAT) }).map(
+        (_, i) => {
+          const birth = i * FRAMES_PER_BEAT;
+          const age = frame - birth;
+          if (age < 0) return null;
+          const scale = interpolate(age, [0, 60], [0.55, 2.4], {
+            extrapolateRight: "clamp",
+          });
+          const fade = interpolate(age, [0, 55], [0.45, 0], {
+            extrapolateRight: "clamp",
+          });
+          return (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                width: 700,
+                height: 700,
+                borderRadius: "50%",
+                border: `3px solid ${brand.colors.background}`,
+                opacity: fade,
+                transform: `scale(${scale})`,
+              }}
+            />
+          );
+        },
+      )}
       <div
         style={{
           fontFamily: DISPLAY,
@@ -90,6 +102,8 @@ export const CTAScene: React.FC<{
       >
         {brand.domain}
       </div>
+      <Vignette strength={0.35} />
+      <Grain opacity={0.08} />
     </AbsoluteFill>
   );
 };
