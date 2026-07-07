@@ -206,7 +206,7 @@ const ColdOpenTerminal: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>;
         if (phrase[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={at} durationInFrames={4}>
-            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.35 + ((i * 37) % 10) / 40} />
+            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.22 + ((i * 37) % 10) / 60} />
           </Sequence>
         );
       })}
@@ -279,7 +279,7 @@ const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; b
         if (query[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={typeStart + i * CHAR_FRAMES} durationInFrames={4}>
-            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.32 + ((i * 41) % 10) / 45} />
+            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.2 + ((i * 41) % 10) / 60} />
           </Sequence>
         );
       })}
