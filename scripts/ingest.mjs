@@ -2,7 +2,7 @@
 // Usage: node scripts/ingest.mjs https://leadverse.ai
 // Output: runs/<domain>/factsheet.json + public/shots/<domain>/*.png
 import { chromium } from "playwright";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const url = process.argv[2];
@@ -57,6 +57,36 @@ const colorCandidates = await page.evaluate(() => {
   }
   return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 });
+// — vivid brand color: pixel-sample the hero screenshot (survives gradients/images)
+const heroBuf = readFileSync(join(shotsDir, "hero.png"));
+const samplePage = await browser.newPage();
+const vividColor = await samplePage.evaluate(async (dataUrl) => {
+  const img = new Image();
+  await new Promise((res, rej) => {
+    img.onload = res;
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
+  const c = document.createElement("canvas");
+  c.width = img.width / 4;
+  c.height = img.height / 4;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  const counts = {};
+  for (let i = 0; i < d.length; i += 16) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const mx = Math.max(r, g, b) / 255, mn = Math.min(r, g, b) / 255;
+    const sat = mx === 0 ? 0 : (mx - mn) / mx;
+    if (sat * mx < 0.45) continue; // only vivid pixels
+    const key = `${Math.round(r / 24) * 24},${Math.round(g / 24) * 24},${Math.round(b / 24) * 24}`;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  if (!top) return null;
+  const [r, g, b] = top[0].split(",").map(Number);
+  return `#${[r, g, b].map((v) => Math.min(255, v).toString(16).padStart(2, "0")).join("")}`;
+}, `data:image/png;base64,${heroBuf.toString("base64")}`);
 await browser.close();
 
 // — specificity mining (regex tier; the director LLM does the semantic tier)
@@ -72,6 +102,7 @@ const factsheet = {
   crawledAt: new Date().toISOString(),
   meta,
   colorCandidates,
+  vividColor,
   shots,
   specificity: {
     numericCandidates: numbers,

@@ -1,6 +1,7 @@
 // BRAIN step 2 — the creative director.
 // Usage: GEMINI_API_KEY=... node scripts/director.mjs leadverse.ai
 // Reads runs/<domain>/factsheet.json → writes runs/<domain>/film.json
+import "dotenv/config";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -14,7 +15,7 @@ if (!key) {
   console.error("GEMINI_API_KEY not set");
   process.exit(1);
 }
-const MODEL = process.env.DIRECTOR_MODEL ?? "gemini-3-flash";
+const MODEL = process.env.DIRECTOR_MODEL ?? "gemini-3-flash-preview";
 const runDir = join("runs", domain);
 const factsheet = JSON.parse(readFileSync(join(runDir, "factsheet.json"), "utf8"));
 
@@ -27,9 +28,11 @@ NON-NEGOTIABLE RULES:
 3. VOICE: short, punchy, second person. Hook words: 4-6 items, one word/short phrase each, the LAST one gets accent=true and must be the sharpest word.
 4. Screenshots: choose from factsheet.shots — hero for PRODUCT_HERO, inner/product states for FEATURE_WALK.
 
+5. STYLE PACK IS LOCKED (Editorial Cream): colors.bg is ALWAYS "#F4EFE4", colors.fg ALWAYS "#101010", colors.muted ALWAYS "#8A867A". You choose ONLY the accent: the most vivid, saturated brand color from colorCandidates as hex — never near-black, never near-white, never gray.
+
 OUTPUT: raw JSON only, no markdown fences, exactly this shape:
 {
-  "brand": { "name": str, "domain": str, "colors": { "bg": "#F4EFE4", "fg": "#101010", "accent": <from colorCandidates, as hex>, "muted": "#8A867A" } },
+  "brand": { "name": str, "domain": str, "colors": { "bg": "#F4EFE4", "fg": "#101010", "accent": <vivid hex from colorCandidates>, "muted": "#8A867A" } },
   "scenes": [
     { "type": "COLD_OPEN", "words": [{"t": str, "accent": bool}...], "kicker": str },
     { "type": "PAIN_TYPOGRAPHY", "label": str, "lines": [str, str] },
@@ -85,6 +88,44 @@ const film = JSON.parse(text);
 const types = film.scenes.map((s) => s.type);
 const required = ["COLD_OPEN", "PRODUCT_HERO", "STAT_CALLOUT", "CTA_COMPRESSION"];
 for (const t of required) if (!types.includes(t)) throw new Error(`director omitted ${t}`);
+
+// Style pack lock + accent contrast guard (LLMs pick near-black accents from nav buttons)
+film.brand.colors.bg = "#F4EFE4";
+film.brand.colors.fg = "#101010";
+film.brand.colors.muted = "#8A867A";
+const hexToRgb = (h) => {
+  const m = h.replace("#", "");
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+};
+const vividness = ([r, g, b]) => {
+  const mx = Math.max(r, g, b) / 255;
+  const mn = Math.min(r, g, b) / 255;
+  const sat = mx === 0 ? 0 : (mx - mn) / mx;
+  return sat * mx; // saturated AND bright
+};
+let accent = film.brand.colors.accent ?? "";
+let rgb = /^#[0-9a-fA-F]{6}$/.test(accent) ? hexToRgb(accent) : [0, 0, 0];
+if (vividness(rgb) < 0.35) {
+  // priority: pixel-sampled vivid color from the hero screenshot
+  if (factsheet.vividColor && vividness(hexToRgb(factsheet.vividColor)) >= 0.35) {
+    accent = factsheet.vividColor;
+    console.log(`accent guard: replaced ${film.brand.colors.accent} → ${accent} (hero pixel sample)`);
+  } else {
+    const parsed = (factsheet.colorCandidates ?? [])
+      .map(([c]) => c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/))
+      .filter(Boolean)
+      .map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]);
+    const best = parsed.sort((a, b) => vividness(b) - vividness(a))[0];
+    if (best && vividness(best) >= 0.35) {
+      accent = `#${best.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+      console.log(`accent guard: replaced ${film.brand.colors.accent} → ${accent} (CTA style)`);
+    } else {
+      accent = "#2A48F0";
+      console.log(`accent guard: no vivid candidate, using fallback ${accent}`);
+    }
+  }
+  film.brand.colors.accent = accent;
+}
 
 writeFileSync(join(runDir, "film.json"), JSON.stringify(film, null, 2));
 console.log(`film: ${runDir}/film.json`);
