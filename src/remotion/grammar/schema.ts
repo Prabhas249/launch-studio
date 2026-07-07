@@ -57,7 +57,7 @@ const FeatureWalk = z.object({
 const StatCallout = z.object({
   type: z.literal("STAT_CALLOUT"),
   vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
-  variant: z.enum(["odometer", "repeat_stack"]).default("odometer"),
+  variant: z.enum(["odometer", "repeat_stack", "slot"]).default("odometer"),
   value: z.number().describe("REAL number from the site — never invented"),
   prefix: z.string().default("").describe('e.g. "$" or ""'),
   suffix: z.string().describe('e.g. "businesses already listening"'),

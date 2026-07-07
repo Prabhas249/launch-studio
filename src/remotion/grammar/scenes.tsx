@@ -16,6 +16,8 @@ import { loadFont as loadInterTight } from "@remotion/google-fonts/InterTight";
 import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
 import { Trail, CameraMotionBlur } from "@remotion/motion-blur";
 import { makeTransform, rotateX, scale as tScale, translateY } from "@remotion/animation-utils";
+import { MeshGradientBg } from "../../components/remocn/mesh-gradient-bg";
+import { SlotMachineRoll } from "../../components/remocn/slot-machine-roll";
 import type { Film, Scene } from "./schema";
 import { SPRING_LOGO, SPRING_SNAPPY } from "../vault/springs";
 
@@ -41,6 +43,13 @@ const explode = (f: number, start: number, dur = 6) =>
   });
 const drift = (f: number, from: number, to: number, len: number) =>
   interpolate(f, [0, len], [from, to], { easing: Easing.linear });
+
+// lighten/darken a hex color by pct (-100..100)
+const shade = (hex: string, pct: number) => {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(v + (pct / 100) * (pct > 0 ? 255 - v : v))));
+  return `#${[ch((n >> 16) & 255), ch((n >> 8) & 255), ch(n & 255)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+};
 
 // ————— COLD_OPEN —————
 // AE-style baseline mask reveal: word rises out of an overflow:hidden line box.
@@ -197,7 +206,7 @@ const ColdOpenTerminal: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>;
         if (phrase[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={at} durationInFrames={4}>
-            <Audio src={staticFile("audio/sfx/ui/keytick.wav")} volume={0.35 + ((i * 37) % 10) / 40} />
+            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.35 + ((i * 37) % 10) / 40} />
           </Sequence>
         );
       })}
@@ -270,7 +279,7 @@ const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; b
         if (query[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={typeStart + i * CHAR_FRAMES} durationInFrames={4}>
-            <Audio src={staticFile("audio/sfx/ui/keytick.wav")} volume={0.32 + ((i * 41) % 10) / 45} />
+            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.32 + ((i * 41) % 10) / 45} />
           </Sequence>
         );
       })}
@@ -946,6 +955,30 @@ const StatCallout: React.FC<{
   );
 };
 
+// ————— STAT variant: slot (remocn slot-machine digit roll) —————
+const StatSlot: React.FC<{ scene: Extract<Scene, { type: "STAT_CALLOUT" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const inP = snapIn(f, 0, 8);
+  const text = `${scene.prefix}${scene.value.toLocaleString("en-US")}`;
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center" }}>
+      <Sequence from={Math.floor(duration * 0.5)} durationInFrames={8}>
+        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.7} />
+      </Sequence>
+      <div style={{ opacity: inP }}>
+        <SlotMachineRoll from={text.replace(/\d/g, "0")} to={text} fontSize={300} color={brand.colors.accent} fontWeight={900} />
+      </div>
+      <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 40, color: brand.colors.bg, marginTop: 26, opacity: inP * 0.92 }}>
+        {scene.suffix}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 // ————— CTA_COMPRESSION —————
 const CtaCompression: React.FC<{
   scene: Extract<Scene, { type: "CTA_COMPRESSION" }>;
@@ -960,7 +993,27 @@ const CtaCompression: React.FC<{
   const endBit = snapIn(f, duration - 40, 8);
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center", overflow: "hidden" }}>
-      <div style={{ position: "absolute", width: 2400, height: 2400, borderRadius: "50%", backgroundColor: brand.colors.accent, transform: `scale(${flood})` }} />
+      {/* expanding circle now contains a living mesh gradient of brand shades */}
+      <Sequence from={0} durationInFrames={10}>
+        <Audio src={staticFile("audio/sfx/rise/pulse_ring.wav")} volume={0.5} />
+      </Sequence>
+      <div
+        style={{
+          position: "absolute",
+          width: 2400,
+          height: 2400,
+          borderRadius: "50%",
+          overflow: "hidden",
+          transform: `scale(${flood})`,
+        }}
+      >
+        <MeshGradientBg
+          colors={[brand.colors.accent, shade(brand.colors.accent, -35), shade(brand.colors.accent, 30)]}
+          background={brand.colors.accent}
+          speed={0.6}
+          blur={90}
+        />
+      </div>
       {Array.from({ length: Math.ceil(duration / BEAT) }).map((_, i) => {
         const age = f - (i * BEAT + 10);
         if (age < 0) return null;
@@ -1015,6 +1068,8 @@ export const SceneRenderer: React.FC<{ scene: Scene; brand: Brand; duration: num
     case "STAT_CALLOUT":
       return scene.variant === "repeat_stack" ? (
         <StatRepeatStack scene={scene} brand={brand} duration={duration} />
+      ) : scene.variant === "slot" ? (
+        <StatSlot scene={scene} brand={brand} duration={duration} />
       ) : (
         <StatCallout scene={scene} brand={brand} duration={duration} />
       );
