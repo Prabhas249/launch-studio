@@ -25,13 +25,16 @@ export const GrammarFilm: React.FC<Film> = (film) => {
   };
   const bed = film.musicFile ?? BEDS[film.music ?? "pulse"];
   const hasVo = Boolean(film.voFull) || (film.voTracks ?? []).some(Boolean);
-  // Sidechain pump: bed ducks hard on every beat and breathes back (ad energy),
-  // plus overall duck when a voiceover is present.
+  // BGM sits UNDER the voice (ad standard: music ~-20dB below VO ≈ 0.22 gain).
+  // Synth beds get the sidechain pump; full-mix Lyria tracks pump lightly.
   const BEAT = 15;
+  const isRealTrack = Boolean(film.musicFile);
   const bedVolume = (f: number) => {
     const inBeat = f % BEAT;
-    const pump = 0.62 + 0.38 * Math.min(1, inBeat / 9);
-    return (hasVo ? 0.5 : 0.9) * pump;
+    const pumpDepth = isRealTrack ? 0.12 : 0.38;
+    const pump = 1 - pumpDepth + pumpDepth * Math.min(1, inBeat / 9);
+    const base = hasVo ? (isRealTrack ? 0.22 : 0.35) : isRealTrack ? 0.75 : 0.9;
+    return base * pump;
   };
 
   return (
