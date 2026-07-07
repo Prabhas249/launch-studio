@@ -253,9 +253,9 @@ const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; b
       </Sequence>
       <div
         style={{
-          transform: `translateY(${(1 - barIn) * 120 - results * 160}px) scale(${(1 + slam * 0.02) * (1 + boom * 8)})`,
+          transform: `translateX(${(1 - barIn) * -1200}px) translateY(${-results * 160}px) scale(${(1 + slam * 0.02) * (1 + boom * 8)})`,
           filter: boom > 0 ? `blur(${boom * 10}px)` : "none",
-          opacity: barIn,
+          opacity: barIn > 0.02 ? 1 : 0,
         }}
       >
         <div

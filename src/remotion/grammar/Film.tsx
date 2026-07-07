@@ -23,8 +23,8 @@ export const GrammarFilm: React.FC<Film> = (film) => {
     heavy: "audio/arranged-heavy.wav",
     adrenaline: "audio/arranged-adrenaline.wav",
   };
-  const bed = BEDS[film.music ?? "pulse"];
-  const hasVo = (film.voTracks ?? []).some(Boolean);
+  const bed = film.musicFile ?? BEDS[film.music ?? "pulse"];
+  const hasVo = Boolean(film.voFull) || (film.voTracks ?? []).some(Boolean);
   // Sidechain pump: bed ducks hard on every beat and breathes back (ad energy),
   // plus overall duck when a voiceover is present.
   const BEAT = 15;
@@ -37,17 +37,23 @@ export const GrammarFilm: React.FC<Film> = (film) => {
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg }}>
       <Audio src={staticFile(bed)} volume={bedVolume} />
-      {(film.voTracks ?? []).map((vo, i) =>
-        vo ? (
-          <Sequence key={`vo-${i}`} from={starts[i] + 4} durationInFrames={durations[i]}>
-            <Audio
-              src={staticFile(vo)}
-              volume={(f) =>
-                f > durations[i] - 12 ? Math.max(0, (durations[i] - f) / 12) : 1
-              }
-            />
-          </Sequence>
-        ) : null,
+      {film.voFull ? (
+        <Sequence from={10}>
+          <Audio src={staticFile(film.voFull)} volume={1} />
+        </Sequence>
+      ) : (
+        (film.voTracks ?? []).map((vo, i) =>
+          vo ? (
+            <Sequence key={`vo-${i}`} from={starts[i] + 4} durationInFrames={durations[i]}>
+              <Audio
+                src={staticFile(vo)}
+                volume={(f) =>
+                  f > durations[i] - 12 ? Math.max(0, (durations[i] - f) / 12) : 1
+                }
+              />
+            </Sequence>
+          ) : null,
+        )
       )}
       {starts.slice(1).map((cut, i) => (
         <Sequence key={`wh-${i}`} from={cut - 7} durationInFrames={20}>
