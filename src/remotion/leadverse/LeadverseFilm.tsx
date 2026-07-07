@@ -372,14 +372,14 @@ const CTA: React.FC = () => {
 export const LeadverseFilm: React.FC = () => {
   return (
     <AbsoluteFill style={{ backgroundColor: CREAM }}>
-      <Audio src={staticFile("audio/arranged.wav")} volume={0.9} />
+      <Audio src={staticFile("audio/music/beds/arranged.wav")} volume={0.9} />
       {[BAR * 2, BAR * 4, BAR * 7, BAR * 11, BAR * 13].map((cut, i) => (
         <Sequence key={i} from={cut - 7} durationInFrames={20}>
-          <Audio src={staticFile("audio/whoosh.wav")} volume={0.5} />
+          <Audio src={staticFile("audio/sfx/transition/whoosh.wav")} volume={0.5} />
         </Sequence>
       ))}
       <Sequence from={BAR * 5 - 4} durationInFrames={32}>
-        <Audio src={staticFile("audio/impact.wav")} volume={0.85} />
+        <Audio src={staticFile("audio/sfx/impact/impact.wav")} volume={0.85} />
       </Sequence>
 
       <Sequence durationInFrames={BAR * 2}>

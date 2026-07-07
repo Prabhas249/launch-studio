@@ -19,9 +19,9 @@ export const GrammarFilm: React.FC<Film> = (film) => {
   const starts = durations.reduce<number[]>((acc, d, i) => [...acc, (acc[i - 1] ?? 0) + (durations[i - 1] ?? 0)], []);
   const heroIdx = film.scenes.findIndex((s) => s.type === "PRODUCT_HERO");
   const BEDS: Record<string, string> = {
-    pulse: "audio/arranged.wav",
-    heavy: "audio/arranged-heavy.wav",
-    adrenaline: "audio/arranged-adrenaline.wav",
+    pulse: "audio/music/beds/arranged.wav",
+    heavy: "audio/music/beds/arranged-heavy.wav",
+    adrenaline: "audio/music/beds/arranged-adrenaline.wav",
   };
   const bed = film.musicFile ?? BEDS[film.music ?? "pulse"];
   const hasVo = Boolean(film.voFull) || (film.voTracks ?? []).some(Boolean);
@@ -33,7 +33,7 @@ export const GrammarFilm: React.FC<Film> = (film) => {
     const inBeat = f % BEAT;
     const pumpDepth = isRealTrack ? 0.12 : 0.38;
     const pump = 1 - pumpDepth + pumpDepth * Math.min(1, inBeat / 9);
-    const base = hasVo ? (isRealTrack ? 0.22 : 0.35) : isRealTrack ? 0.75 : 0.9;
+    const base = hasVo ? (isRealTrack ? 0.12 : 0.15) : isRealTrack ? 0.7 : 0.85;
     return base * pump;
   };
 
@@ -60,12 +60,12 @@ export const GrammarFilm: React.FC<Film> = (film) => {
       )}
       {starts.slice(1).map((cut, i) => (
         <Sequence key={`wh-${i}`} from={cut - 7} durationInFrames={20}>
-          <Audio src={staticFile(i % 2 === 0 ? "audio/whoosh.wav" : "audio/whoosh2.wav")} volume={0.5} />
+          <Audio src={staticFile(i % 2 === 0 ? "audio/sfx/transition/whoosh.wav" : "audio/sfx/transition/whoosh2.wav")} volume={0.4} />
         </Sequence>
       ))}
       {heroIdx >= 0 ? (
         <Sequence from={starts[heroIdx] + BAR - 4} durationInFrames={32}>
-          <Audio src={staticFile("audio/impact.wav")} volume={0.85} />
+          <Audio src={staticFile("audio/sfx/impact/impact.wav")} volume={0.85} />
         </Sequence>
       ) : null}
 

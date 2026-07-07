@@ -14,6 +14,8 @@ import {
 } from "remotion";
 import { loadFont as loadInterTight } from "@remotion/google-fonts/InterTight";
 import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
+import { Trail, CameraMotionBlur } from "@remotion/motion-blur";
+import { makeTransform, rotateX, scale as tScale, translateY } from "@remotion/animation-utils";
 import type { Film, Scene } from "./schema";
 import { SPRING_LOGO, SPRING_SNAPPY } from "../vault/springs";
 
@@ -41,6 +43,43 @@ const drift = (f: number, from: number, to: number, len: number) =>
   interpolate(f, [0, len], [from, to], { easing: Easing.linear });
 
 // ————— COLD_OPEN —————
+// AE-style baseline mask reveal: word rises out of an overflow:hidden line box.
+// Trail adds a directional smear on the rise (motion-blur research finding #3).
+const MaskWord: React.FC<{ word: { t: string; accent: boolean; at: number }; brand: Brand; duration: number }> = ({
+  word,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const p = snapIn(f - word.at, 0, 7);
+  const boom = explode(f, duration - 8, 8);
+  const size = word.t.length > 8 ? 230 : 300;
+  return (
+    <div
+      style={{
+        overflow: boom > 0 ? "visible" : "hidden",
+        height: `${size * 1.12}px`,
+        lineHeight: `${size * 1.12}px`,
+        transform: boom > 0 ? `scale(${1 + boom * 22})` : undefined,
+        filter: boom > 0 ? `blur(${boom * 14}px)` : "none",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: TIGHT,
+          fontWeight: 900,
+          fontSize: size,
+          letterSpacing: "-0.05em",
+          color: word.accent ? brand.colors.accent : brand.colors.fg,
+          transform: `translateY(${(1 - p) * 100}%)`,
+        }}
+      >
+        {word.t}
+      </div>
+    </div>
+  );
+};
+
 const ColdOpen: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: Brand; duration: number }> = ({
   scene,
   brand,
@@ -49,25 +88,12 @@ const ColdOpen: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: 
   const f = useCurrentFrame();
   const words = scene.words.map((w, i) => ({ ...w, at: i >= 3 ? BEAT * (i + 1) : BEAT * i }));
   const current = [...words].reverse().find((w) => f >= w.at) ?? words[0];
-  const p = snapIn(f - current.at, 0, 6);
-  const boom = explode(f, duration - 8, 8);
 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
-      <div
-        style={{
-          fontFamily: TIGHT,
-          fontWeight: 900,
-          fontSize: current.t.length > 8 ? 230 : 300,
-          letterSpacing: "-0.05em",
-          color: current.accent ? brand.colors.accent : brand.colors.fg,
-          opacity: boom > 0 ? 1 : p,
-          transform: `scale(${(0.92 + p * 0.08) * (1 + boom * 22)}) translateY(${(1 - p) * 20}px)`,
-          filter: boom > 0 ? `blur(${boom * 14}px)` : `blur(${(1 - p) * 5}px)`,
-        }}
-      >
-        {current.t}
-      </div>
+      <Trail layers={10} lagInFrames={0.25} trailOpacity={0.75}>
+        <MaskWord word={current} brand={brand} duration={duration} />
+      </Trail>
       <div
         style={{
           position: "absolute",
@@ -171,7 +197,7 @@ const ColdOpenTerminal: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>;
         if (phrase[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={at} durationInFrames={4}>
-            <Audio src={staticFile("audio/keytick.wav")} volume={0.35 + ((i * 37) % 10) / 40} />
+            <Audio src={staticFile("audio/sfx/ui/keytick.wav")} volume={0.35 + ((i * 37) % 10) / 40} />
           </Sequence>
         );
       })}
@@ -244,12 +270,12 @@ const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; b
         if (query[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={typeStart + i * CHAR_FRAMES} durationInFrames={4}>
-            <Audio src={staticFile("audio/keytick.wav")} volume={0.32 + ((i * 41) % 10) / 45} />
+            <Audio src={staticFile("audio/sfx/ui/keytick.wav")} volume={0.32 + ((i * 41) % 10) / 45} />
           </Sequence>
         );
       })}
       <Sequence from={enterAt} durationInFrames={8}>
-        <Audio src={staticFile("audio/enter.wav")} volume={0.9} />
+        <Audio src={staticFile("audio/sfx/ui/enter.wav")} volume={0.9} />
       </Sequence>
       <div
         style={{
@@ -334,7 +360,7 @@ const ProductHeroPhone: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, alignItems: "center", overflow: "hidden" }}>
       <Sequence from={BEAT + 10} durationInFrames={8}>
-        <Audio src={staticFile("audio/pop.wav")} volume={0.6} />
+        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.6} />
       </Sequence>
       <div
         style={{
@@ -430,6 +456,9 @@ const PainStrikeList: React.FC<{ scene: Extract<Scene, { type: "PAIN_TYPOGRAPHY"
           });
           return (
             <div key={i} style={{ marginBottom: 26 }}>
+              <Sequence from={strikeStart + i * 3} durationInFrames={6}>
+                <Audio src={staticFile("audio/sfx/ui/strike.wav")} volume={0.4} />
+              </Sequence>
               <span
                 style={{
                   position: "relative",
@@ -681,8 +710,6 @@ const ProductHero: React.FC<{
     extrapolateRight: "clamp",
     easing: SNAP,
   });
-  const windowUp = spring({ frame: f, fps, delay: BAR, config: { damping: 15, mass: 0.8, stiffness: 150 } });
-  const push = drift(f, 1, 1.05, duration);
   const chip = spring({ frame: f, fps, delay: BAR * 2, config: SPRING_LOGO });
   const [pre, accentPart] = scene.headline.split("|");
 
@@ -711,20 +738,20 @@ const ProductHero: React.FC<{
         style={{
           position: "absolute",
           top: 210,
+          left: "50%",
+          marginLeft: -750,
           width: 1500,
-          borderRadius: 16,
-          overflow: "hidden",
-          boxShadow: "0 70px 140px -30px rgba(16,16,16,0.55), 0 0 0 1px rgba(16,16,16,0.08)",
-          opacity: windowUp > 0.02 ? 1 : 0,
-          transform: `translateY(${(1 - windowUp) * 620}px) rotateX(${(1 - windowUp) * 9}deg) scale(${push})`,
-          transformOrigin: "50% 10%",
+          height: 870,
           zIndex: 1,
+          perspective: 1400,
         }}
       >
-        <Img src={staticFile(scene.screenshot)} style={{ width: "100%", display: "block" }} />
+        <CameraMotionBlur shutterAngle={180} samples={8}>
+          <WindowRise scene={scene} brand={brand} duration={duration} />
+        </CameraMotionBlur>
       </div>
       <Sequence from={BAR * 2} durationInFrames={8}>
-        <Audio src={staticFile("audio/pop.wav")} volume={0.6} />
+        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.6} />
       </Sequence>
       <div
         style={{
@@ -750,6 +777,37 @@ const ProductHero: React.FC<{
   );
 };
 
+// Extracted so CameraMotionBlur can offset its internal time context correctly.
+const WindowRise: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const windowUp = spring({ frame: f, fps, delay: BAR, config: { damping: 15, mass: 0.8, stiffness: 150 } });
+  const push = drift(f, 1, 1.05, duration);
+  return (
+    <div
+      style={{
+        width: 1500,
+        borderRadius: 16,
+        overflow: "hidden",
+        boxShadow: "0 70px 140px -30px rgba(16,16,16,0.55), 0 0 0 1px rgba(16,16,16,0.08)",
+        opacity: windowUp > 0.02 ? 1 : 0,
+        transform: makeTransform([
+          translateY((1 - windowUp) * 620),
+          rotateX(`${(1 - windowUp) * 9}deg`),
+          tScale(push),
+        ]),
+        transformOrigin: "50% 10%",
+      }}
+    >
+      <Img src={staticFile(scene.screenshot)} style={{ width: "100%", display: "block" }} />
+    </div>
+  );
+};
+
 // ————— FEATURE_WALK —————
 const FeatureStep: React.FC<{
   step: { screenshot: string; title: string };
@@ -772,8 +830,30 @@ const FeatureStep: React.FC<{
     extrapolateRight: "clamp",
   });
 
+  const flash = interpolate(f, [clickAt, clickAt + 8], [0.6, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, overflow: "hidden" }}>
+      <Sequence from={0} durationInFrames={12}>
+        <Audio src={staticFile("audio/sfx/transition/swipe.wav")} volume={0.35} />
+      </Sequence>
+      <Sequence from={clickAt} durationInFrames={6}>
+        <Audio src={staticFile("audio/sfx/ui/click.wav")} volume={0.45} />
+      </Sequence>
+      {/* dopamine click: full-viewport radial flash (research: the detail most miss) */}
+      {flash > 0 ? (
+        <AbsoluteFill
+          style={{
+            background: `radial-gradient(circle at 50% 62%, ${brand.colors.accent}66 0%, transparent 65%)`,
+            opacity: flash,
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        />
+      ) : null}
       <div
         style={{
           position: "absolute",
@@ -849,11 +929,11 @@ const StatCallout: React.FC<{
     <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center" }}>
       {Array.from({ length: Math.floor(countFrames / 3) }).map((_, i) => (
         <Sequence key={`tk-${i}`} from={4 + i * 3} durationInFrames={3}>
-          <Audio src={staticFile("audio/tick.wav")} volume={0.28} />
+          <Audio src={staticFile("audio/sfx/ui/tick.wav")} volume={0.28} />
         </Sequence>
       ))}
       <Sequence from={countFrames} durationInFrames={8}>
-        <Audio src={staticFile("audio/pop.wav")} volume={0.7} />
+        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.7} />
       </Sequence>
       <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 330, letterSpacing: "-0.05em", color: brand.colors.accent, lineHeight: 1, opacity: inP, fontVariantNumeric: "tabular-nums" }}>
         {scene.prefix}

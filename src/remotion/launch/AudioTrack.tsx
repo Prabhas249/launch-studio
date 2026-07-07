@@ -25,20 +25,20 @@ export const AudioTrack: React.FC<{ props: LaunchVideoProps }> = ({
 
   return (
     <>
-      <Audio src={staticFile("audio/bed.wav")} volume={0.55} />
+      <Audio src={staticFile("audio/music/beds/bed.wav")} volume={0.55} />
       {cuts.map((cut, i) => (
         <Sequence key={`whoosh-${i}`} from={cut - 7} durationInFrames={20}>
-          <Audio src={staticFile("audio/whoosh.wav")} volume={0.55} />
+          <Audio src={staticFile("audio/sfx/transition/whoosh.wav")} volume={0.55} />
         </Sequence>
       ))}
       <Sequence from={windowLand} durationInFrames={32}>
-        <Audio src={staticFile("audio/impact.wav")} volume={0.9} />
+        <Audio src={staticFile("audio/sfx/impact/impact.wav")} volume={0.9} />
       </Sequence>
       <Sequence from={ctaStart - 60} durationInFrames={62}>
-        <Audio src={staticFile("audio/riser.wav")} volume={0.5} />
+        <Audio src={staticFile("audio/sfx/rise/riser.wav")} volume={0.5} />
       </Sequence>
       <Sequence from={ctaStart} durationInFrames={32}>
-        <Audio src={staticFile("audio/impact.wav")} volume={1} />
+        <Audio src={staticFile("audio/sfx/impact/impact.wav")} volume={1} />
       </Sequence>
     </>
   );
