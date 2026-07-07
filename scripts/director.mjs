@@ -27,11 +27,12 @@ NON-NEGOTIABLE RULES:
 2. STORY ARC: hook (a sharp, specific tension — never the product name) → pain (the old way, 2-3 concrete behaviors) → reveal → 2-3 features as user actions → one REAL stat → CTA using the site's own strongest phrase.
 3. VOICE: short, punchy, second person. Hook words: 4-6 items, one word/short phrase each, the LAST one gets accent=true and must be the sharpest word.
 4. Screenshots: choose from factsheet.shots — hero for PRODUCT_HERO, inner/product states for FEATURE_WALK.
+4b. NARRATION ("vo" field on EVERY scene): you are also the scriptwriter. Write a voiceover line per scene that — read in order — forms ONE flowing 60-80 word story a human narrator tells. NEVER copy the on-screen text or website copy; the VO complements what's on screen. Contractions always. Each line ≤ 10 words (FEATURE_WALK may be ≤ 20). Punctuation is pacing: ellipsis = suspense, em-dash = pivot, period = hard stop. The CTA vo ends with the domain spoken aloud.
 
 5. ART DIRECTION — you make real choices here, and videos for different brands MUST NOT look alike:
    - "stylePack": "editorial_cream" (light, editorial — DEFAULT for friendly/consumer/marketing tools) or "dark_terminal" (near-black, technical — for dev tools, infra, AI/agents products).
    - "music": "pulse" (bright four-on-floor), "heavy" (halftime, dark — fits dark_terminal), or "adrenaline" (fast 16th-note ad energy — DEFAULT for bold products).
-   - Scene variants — CHOOSE deliberately; you MUST use at least 2 non-default variants (marquee/terminal/strike_list/bento/repeat_stack) per film where they fit the story: COLD_OPEN "word_per_beat" (staccato tension), "marquee" (one giant sliding statement), or "terminal" (a console types the hook with keystroke sounds — PERFECT for dev/AI/technical products; keep hook under 40 chars for terminal). PAIN_TYPOGRAPHY "circle_swap" or "strike_list" (crossing out the old way). PRODUCT_HERO "window_slam" (one hero shot) or "bento" (3-shot grid — needs extraShots). STAT_CALLOUT "odometer" (counting up) or "repeat_stack" (the number repeated as a giant type wall — best for money/impressive counts).
+   - Scene variants — CHOOSE deliberately; you MUST use at least 2 non-default variants per film where they fit the story: COLD_OPEN "word_per_beat" (staccato tension), "marquee" (one giant sliding statement), "terminal" (console types the hook w/ keystroke sounds — dev/AI/technical products, hook ≤ 40 chars), or "search" (a Google-style bar types the desperate query a buyer would search + ENTER slam — PERFECT when the product is discovered via search/social; set "query" to that search, ≤ 45 chars). PAIN_TYPOGRAPHY "circle_swap" or "strike_list" (crossing out the old way). PRODUCT_HERO "window_slam" (one hero shot), "bento" (3-shot grid — needs extraShots), or "phone" (device mockup — mobile-first products, needs the mobile screenshot if available). STAT_CALLOUT "odometer" (counting up) or "repeat_stack" (number repeated as giant type wall — money/impressive counts).
    - Accent: the most vivid, saturated brand color from colorCandidates/vividColor as hex — never near-black, never near-white, never gray.
 
 OUTPUT: raw JSON only, no markdown fences, exactly this shape:
@@ -40,12 +41,12 @@ OUTPUT: raw JSON only, no markdown fences, exactly this shape:
   "stylePack": "editorial_cream" | "dark_terminal",
   "music": "pulse" | "heavy",
   "scenes": [
-    { "type": "COLD_OPEN", "variant": "word_per_beat"|"marquee"|"terminal", "words": [{"t": str, "accent": bool}...], "kicker": str },
-    { "type": "PAIN_TYPOGRAPHY", "variant": "circle_swap"|"strike_list", "label": str, "lines": [str, str] },
-    { "type": "PRODUCT_HERO", "variant": "window_slam"|"bento", "headline": "Meet X|suffix.", "screenshot": str, "extraShots": [str, str] (bento only, else []), "chip": str },
-    { "type": "FEATURE_WALK", "steps": [{"screenshot": str, "title": str} x3] },
-    { "type": "STAT_CALLOUT", "variant": "odometer"|"repeat_stack", "value": number, "prefix": ""|"$"|"₹", "suffix": str },
-    { "type": "CTA_COMPRESSION", "headline": str (may contain \\n), "domain": str, "sub": str }
+    { "type": "COLD_OPEN", "vo": str, "variant": "word_per_beat"|"marquee"|"terminal"|"search", "query": str ("" unless search), "words": [{"t": str, "accent": bool}...], "kicker": str },
+    { "type": "PAIN_TYPOGRAPHY", "vo": str, "variant": "circle_swap"|"strike_list", "label": str, "lines": [str, str] },
+    { "type": "PRODUCT_HERO", "vo": str, "variant": "window_slam"|"bento"|"phone", "headline": "Meet X|suffix.", "screenshot": str, "extraShots": [str, str] (bento only, else []), "chip": str },
+    { "type": "FEATURE_WALK", "vo": str, "steps": [{"screenshot": str, "title": str} x3] },
+    { "type": "STAT_CALLOUT", "vo": str, "variant": "odometer"|"repeat_stack", "value": number, "prefix": ""|"$"|"₹", "suffix": str },
+    { "type": "CTA_COMPRESSION", "vo": str, "headline": str (may contain \\n), "domain": str, "sub": str }
   ]
 }`;
 

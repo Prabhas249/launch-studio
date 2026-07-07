@@ -213,6 +213,188 @@ const ColdOpenTerminal: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>;
   );
 };
 
+// ————— COLD_OPEN variant: search (Google-style bar types the pain query) —————
+const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const query = scene.query || scene.words.map((w) => w.t).join(" ");
+  const barIn = spring({ frame: f, fps, delay: 2, config: { damping: 15, mass: 0.8, stiffness: 160 } });
+  const CHAR_FRAMES = 2;
+  const typeStart = 12;
+  const charsShown = Math.max(0, Math.floor((f - typeStart) / CHAR_FRAMES));
+  const typed = query.slice(0, charsShown);
+  const typeDone = typeStart + query.length * CHAR_FRAMES;
+  const enterAt = typeDone + 8;
+  const slam = interpolate(f, [enterAt, enterAt + 4], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: SNAP,
+  });
+  const results = snapIn(f, enterAt + 6, 8);
+  const cursorOn = Math.floor(f / 8) % 2 === 0;
+  const boom = explode(f, duration - 8, 8);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
+      {Array.from({ length: query.length }).map((_, i) => {
+        if (query[i] === " ") return null;
+        return (
+          <Sequence key={`kt-${i}`} from={typeStart + i * CHAR_FRAMES} durationInFrames={4}>
+            <Audio src={staticFile("audio/keytick.wav")} volume={0.32 + ((i * 41) % 10) / 45} />
+          </Sequence>
+        );
+      })}
+      <Sequence from={enterAt} durationInFrames={8}>
+        <Audio src={staticFile("audio/enter.wav")} volume={0.9} />
+      </Sequence>
+      <div
+        style={{
+          transform: `translateY(${(1 - barIn) * 120 - results * 160}px) scale(${(1 + slam * 0.02) * (1 + boom * 8)})`,
+          filter: boom > 0 ? `blur(${boom * 10}px)` : "none",
+          opacity: barIn,
+        }}
+      >
+        <div
+          style={{
+            width: 1100,
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+            padding: "26px 38px",
+            borderRadius: 999,
+            backgroundColor: brand.colors.bg === "#0B0B0D" ? "#17171C" : "#FFFFFF",
+            border: `1.5px solid ${brand.colors.fg}22`,
+            boxShadow: `0 ${20 + slam * 20}px ${60 + slam * 40}px rgba(0,0,0,0.25)`,
+          }}
+        >
+          <div style={{ width: 30, height: 30, borderRadius: 15, border: `3.5px solid ${brand.colors.muted}`, position: "relative" }}>
+            <div style={{ position: "absolute", width: 11, height: 3.5, backgroundColor: brand.colors.muted, transform: "rotate(45deg)", right: -8, bottom: -2, borderRadius: 2 }} />
+          </div>
+          <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 38, color: brand.colors.fg, whiteSpace: "nowrap" }}>
+            {typed}
+            <span style={{ opacity: cursorOn && !slam ? 1 : 0, color: brand.colors.accent }}>|</span>
+          </div>
+        </div>
+      </div>
+      {/* results: fake result rows, the muted world of "nothing good" */}
+      <div style={{ position: "absolute", top: 560, width: 1100, opacity: results * (1 - boom) }}>
+        {[0.9, 0.75, 0.6].map((w, i) => (
+          <div
+            key={i}
+            style={{
+              height: 64,
+              width: `${w * 100}%`,
+              borderRadius: 12,
+              marginBottom: 18,
+              backgroundColor: `${brand.colors.fg}0d`,
+              border: `1px solid ${brand.colors.fg}14`,
+              transform: `translateY(${(1 - snapIn(f, enterAt + 8 + i * 4, 8)) * 40}px)`,
+              opacity: snapIn(f, enterAt + 8 + i * 4, 8),
+            }}
+          />
+        ))}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 100,
+          fontFamily: BODY,
+          fontWeight: 500,
+          fontSize: 30,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: brand.colors.muted,
+          opacity: results * 0.9 * (1 - boom),
+        }}
+      >
+        {scene.kicker}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ————— PRODUCT_HERO variant: phone (device mockup rises, for mobile-first) —————
+const ProductHeroPhone: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const nameIn = snapIn(f, 2, 8);
+  const phoneUp = spring({ frame: f, fps, delay: BEAT, config: { damping: 14, mass: 0.9, stiffness: 130 } });
+  const sway = Math.sin(f / 26) * 1.6;
+  const chip = spring({ frame: f, fps, delay: BEAT * 3, config: SPRING_LOGO });
+  const [pre, accentPart] = scene.headline.split("|");
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, alignItems: "center", overflow: "hidden" }}>
+      <Sequence from={BEAT + 10} durationInFrames={8}>
+        <Audio src={staticFile("audio/pop.wav")} volume={0.6} />
+      </Sequence>
+      <div
+        style={{
+          position: "absolute",
+          top: 120,
+          fontFamily: TIGHT,
+          fontWeight: 900,
+          fontSize: 120,
+          letterSpacing: "-0.045em",
+          color: brand.colors.fg,
+          opacity: nameIn,
+          transform: `translateY(${(1 - nameIn) * 60}px)`,
+          zIndex: 2,
+        }}
+      >
+        {pre}
+        {accentPart ? <span style={{ color: brand.colors.accent }}>{accentPart}</span> : null}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 320,
+          width: 420,
+          height: 860,
+          borderRadius: 56,
+          border: `10px solid ${brand.colors.fg}`,
+          overflow: "hidden",
+          backgroundColor: "#000",
+          boxShadow: `0 80px 160px -30px rgba(0,0,0,0.6), 0 0 100px ${brand.colors.accent}33`,
+          opacity: phoneUp > 0.02 ? 1 : 0,
+          transform: `translateY(${(1 - phoneUp) * 700}px) rotate(${sway + (1 - phoneUp) * -8}deg)`,
+          transformOrigin: "50% 100%",
+        }}
+      >
+        <Img src={staticFile(scene.screenshot)} style={{ width: "100%", display: "block" }} />
+        <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", width: 120, height: 30, borderRadius: 16, backgroundColor: "#000" }} />
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 380,
+          right: 300,
+          padding: "16px 30px",
+          borderRadius: 999,
+          backgroundColor: brand.colors.accent,
+          color: "#fff",
+          fontFamily: BODY,
+          fontWeight: 600,
+          fontSize: 27,
+          zIndex: 3,
+          opacity: chip,
+          transform: `scale(${0.7 + chip * 0.3}) rotate(3deg)`,
+        }}
+      >
+        {scene.chip}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 // ————— PAIN variant: strike_list (lines struck through by accent sweeps) —————
 const PainStrikeList: React.FC<{ scene: Extract<Scene, { type: "PAIN_TYPOGRAPHY" }>; brand: Brand; duration: number }> = ({
   scene,
@@ -541,6 +723,9 @@ const ProductHero: React.FC<{
       >
         <Img src={staticFile(scene.screenshot)} style={{ width: "100%", display: "block" }} />
       </div>
+      <Sequence from={BAR * 2} durationInFrames={8}>
+        <Audio src={staticFile("audio/pop.wav")} volume={0.6} />
+      </Sequence>
       <div
         style={{
           position: "absolute",
@@ -659,9 +844,19 @@ const StatCallout: React.FC<{
     }),
   );
   const inP = snapIn(f, 0, 8);
+  const countFrames = Math.floor(duration * 0.7);
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center" }}>
+      {Array.from({ length: Math.floor(countFrames / 3) }).map((_, i) => (
+        <Sequence key={`tk-${i}`} from={4 + i * 3} durationInFrames={3}>
+          <Audio src={staticFile("audio/tick.wav")} volume={0.28} />
+        </Sequence>
+      ))}
+      <Sequence from={countFrames} durationInFrames={8}>
+        <Audio src={staticFile("audio/pop.wav")} volume={0.7} />
+      </Sequence>
       <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 330, letterSpacing: "-0.05em", color: brand.colors.accent, lineHeight: 1, opacity: inP, fontVariantNumeric: "tabular-nums" }}>
+        {scene.prefix}
         {n.toLocaleString("en-US")}
       </div>
       <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 40, color: brand.colors.bg, marginTop: 26, opacity: inP * 0.92 }}>
@@ -716,6 +911,8 @@ export const SceneRenderer: React.FC<{ scene: Scene; brand: Brand; duration: num
         <ColdOpenMarquee scene={scene} brand={brand} duration={duration} />
       ) : scene.variant === "terminal" ? (
         <ColdOpenTerminal scene={scene} brand={brand} duration={duration} />
+      ) : scene.variant === "search" ? (
+        <ColdOpenSearch scene={scene} brand={brand} duration={duration} />
       ) : (
         <ColdOpen scene={scene} brand={brand} duration={duration} />
       );
@@ -728,6 +925,8 @@ export const SceneRenderer: React.FC<{ scene: Scene; brand: Brand; duration: num
     case "PRODUCT_HERO":
       return scene.variant === "bento" ? (
         <ProductHeroBento scene={scene} brand={brand} duration={duration} />
+      ) : scene.variant === "phone" ? (
+        <ProductHeroPhone scene={scene} brand={brand} duration={duration} />
       ) : (
         <ProductHero scene={scene} brand={brand} duration={duration} />
       );

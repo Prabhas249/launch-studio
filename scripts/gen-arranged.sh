@@ -146,3 +146,11 @@ ffmpeg -y -loglevel error -i seqC.wav -i riser.wav -i crash.wav -i boom.wav -i r
 [4]adelay=20000|20000,volume=0.6[r2];\
 [0][r1][c1][bm][r2]amix=inputs=5:normalize=0,afade=t=out:st=29.5:d=2.5,volume=0.95" -t 32 arranged-adrenaline.wav
 rm -f barF.wav barG.wav barH.wav seqC.txt seqC.wav snareC.wav bassC.wav
+
+# ——— UI one-shots: enter thock, pop, counter tick ———
+ffmpeg -y -loglevel error -f lavfi -i "sine=f=180:d=0.09" -f lavfi -i "anoisesrc=d=0.04:c=brown:a=0.8" \
+  -filter_complex "[0]afade=t=out:st=0.01:d=0.08[a];[1]lowpass=f=900,afade=t=out:st=0:d=0.04[b];[a][b]amix=inputs=2:normalize=0,volume=1.6" enter.wav
+ffmpeg -y -loglevel error -f lavfi -i "sine=f=520:d=0.07" \
+  -af "afade=t=in:st=0:d=0.01,afade=t=out:st=0.02:d=0.05,volume=0.9" pop.wav
+ffmpeg -y -loglevel error -f lavfi -i "anoisesrc=d=0.02:c=white:a=0.5" \
+  -af "highpass=f=5000,afade=t=out:st=0.002:d=0.018,volume=0.35" tick.wav

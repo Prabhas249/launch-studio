@@ -16,7 +16,10 @@ export const GrammarBrand = z.object({
 
 const ColdOpen = z.object({
   type: z.literal("COLD_OPEN"),
-  variant: z.enum(["word_per_beat", "marquee", "terminal"]).default("word_per_beat"),
+  vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
+  variant: z.enum(["word_per_beat", "marquee", "terminal", "search"]).default("word_per_beat"),
+  // search: a Google-style search bar types the pain query, ENTER slams, results reveal
+  query: z.string().default("").describe("search variant: the query a desperate user would type"),
   // word_per_beat: one word per beat, last accent word explodes through camera
   // marquee: the phrase as one giant line sliding across the frame (ListenLabs)
   // terminal: a console window types the hook with keystroke sounds (Browserbase)
@@ -26,6 +29,7 @@ const ColdOpen = z.object({
 
 const PainTypography = z.object({
   type: z.literal("PAIN_TYPOGRAPHY"),
+  vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
   variant: z.enum(["circle_swap", "strike_list"]).default("circle_swap"),
   label: z.string(),
   lines: z.array(z.string()).min(2).max(3),
@@ -33,7 +37,8 @@ const PainTypography = z.object({
 
 const ProductHero = z.object({
   type: z.literal("PRODUCT_HERO"),
-  variant: z.enum(["window_slam", "bento"]).default("window_slam"),
+  vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
+  variant: z.enum(["window_slam", "bento", "phone"]).default("window_slam"),
   headline: z.string().describe('e.g. "Meet Leadverse." — accent goes on the substring after |'),
   screenshot: z.string().describe("staticFile path"),
   extraShots: z.array(z.string()).max(2).default([]).describe("bento variant: 2 more shots"),
@@ -42,6 +47,7 @@ const ProductHero = z.object({
 
 const FeatureWalk = z.object({
   type: z.literal("FEATURE_WALK"),
+  vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
   steps: z
     .array(z.object({ screenshot: z.string(), title: z.string() }))
     .min(2)
@@ -50,6 +56,7 @@ const FeatureWalk = z.object({
 
 const StatCallout = z.object({
   type: z.literal("STAT_CALLOUT"),
+  vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
   variant: z.enum(["odometer", "repeat_stack"]).default("odometer"),
   value: z.number().describe("REAL number from the site — never invented"),
   prefix: z.string().default("").describe('e.g. "$" or ""'),
@@ -58,6 +65,7 @@ const StatCallout = z.object({
 
 const CtaCompression = z.object({
   type: z.literal("CTA_COMPRESSION"),
+  vo: z.string().default("").describe("narration line for this scene — written story, not screen text"),
   headline: z.string(),
   domain: z.string(),
   sub: z.string(),
@@ -112,6 +120,8 @@ export const leadverseFilmJson: Film = {
   scenes: [
     {
       type: "COLD_OPEN",
+      vo: "",
+      query: "",
       variant: "word_per_beat",
       words: [
         { t: "Your", accent: false },
@@ -124,12 +134,14 @@ export const leadverseFilmJson: Film = {
     },
     {
       type: "PAIN_TYPOGRAPHY",
+      vo: "",
       variant: "circle_swap",
       label: "The old way",
       lines: ["Scrolling subreddits for hours", "Cold DMs nobody answers"],
     },
     {
       type: "PRODUCT_HERO",
+      vo: "",
       variant: "window_slam",
       headline: "Meet Lead|verse.",
       screenshot: "shots/leadverse/leadverse_hero.png",
@@ -138,15 +150,17 @@ export const leadverseFilmJson: Film = {
     },
     {
       type: "FEATURE_WALK",
+      vo: "",
       steps: [
         { screenshot: "shots/leadverse/leadverse_s2.png", title: "Describe what you offer" },
         { screenshot: "shots/leadverse/leadverse_s3.png", title: "AI finds & scores real asks" },
         { screenshot: "shots/leadverse/leadverse_hero.png", title: "Reply while the thread is hot" },
       ],
     },
-    { type: "STAT_CALLOUT", variant: "odometer", value: 6850, prefix: "", suffix: "businesses already listening" },
+    { type: "STAT_CALLOUT", vo: "", variant: "odometer", value: 6850, prefix: "", suffix: "businesses already listening" },
     {
       type: "CTA_COMPRESSION",
+      vo: "",
       headline: "Find people looking\nfor what you offer.",
       domain: "leadverse.ai",
       sub: "7-day free trial · no charge today",

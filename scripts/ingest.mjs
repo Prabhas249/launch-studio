@@ -34,6 +34,14 @@ for (let i = 1; i <= 4; i++) {
   shots.push(`shots/${domain}/${name}`);
 }
 
+// — mobile screenshot (for phone hero variant)
+await page.setViewportSize({ width: 390, height: 844 });
+await page.evaluate(() => window.scrollTo({ top: 0 }));
+await page.waitForTimeout(1500);
+await page.screenshot({ path: join(shotsDir, "mobile.png") });
+shots.push(`shots/${domain}/mobile.png`);
+await page.setViewportSize({ width: 1440, height: 900 });
+
 // — meta + full text
 const meta = await page.evaluate(() => {
   const get = (sel, attr = "content") => document.querySelector(sel)?.getAttribute(attr) ?? null;
