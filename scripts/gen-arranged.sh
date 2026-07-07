@@ -58,3 +58,44 @@ ffmpeg -y -loglevel error -i seq.wav -i riser.wav -i crash.wav -i boom.wav -i cr
 
 rm -f barA.wav barB.wav barC.wav stab.wav seq.wav seq.txt
 echo done && ls -la arranged.wav crash.wav boom.wav
+
+# ——— Variant B: "heavy" — halftime, dark, snare on the back beat ———
+ffmpeg -y -loglevel error -f lavfi -i "anoisesrc=d=0.18:c=white:a=0.8" \
+  -af "bandpass=f=1800:w=1200,afade=t=out:st=0.01:d=0.17,volume=1.5" snare.wav
+ffmpeg -y -loglevel error -f lavfi -i "sine=f=41:d=2" -af "volume=0.35" subB.wav
+ffmpeg -y -loglevel error -f lavfi -i "sine=f=65:d=0.18" -af "afade=t=out:st=0.02:d=0.16,volume=1.2" stab2.wav
+# bar D: kick 1&3, snare on 3, sub drone
+ffmpeg -y -loglevel error -i kick.wav -i snare.wav -i subB.wav -filter_complex "\
+[0]adelay=0|0[k1];[0]adelay=1000|1000[k2];[1]adelay=1000|1000[s1];[2]volume=1[dr];\
+[k1][k2][s1][dr]amix=inputs=4:normalize=0,apad=whole_dur=2" -t 2 barD.wav
+# bar E: D + offbeat bass stabs + hats
+ffmpeg -y -loglevel error -i barD.wav -i stab2.wav -i hat.wav -filter_complex "\
+[1]adelay=500|500[b1];[1]adelay=1500|1500[b2];\
+[2]adelay=250|250[h1];[2]adelay=750|750[h2];[2]adelay=1250|1250[h3];[2]adelay=1750|1750[h4];\
+[0][b1][b2][h1][h2][h3][h4]amix=inputs=7:normalize=0,apad=whole_dur=2" -t 2 barE.wav
+cat > seqB.txt <<TXT
+file 'barD.wav'
+file 'barD.wav'
+file 'barD.wav'
+file 'barD.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barE.wav'
+file 'barD.wav'
+file 'barD.wav'
+file 'barD.wav'
+TXT
+ffmpeg -y -loglevel error -f concat -safe 0 -i seqB.txt -c copy seqB.wav
+ffmpeg -y -loglevel error -i seqB.wav -i riser.wav -i crash.wav -i boom.wav -filter_complex "\
+[1]adelay=6000|6000,volume=0.7[r];[2]adelay=8000|8000,volume=0.8[c1];[3]adelay=8000|8000[bm];\
+[0][r][c1][bm]amix=inputs=4:normalize=0,afade=t=out:st=29.5:d=2.5,volume=0.9" -t 32 arranged-heavy.wav
+# whoosh2: reverse whoosh (fast attack, long tail)
+ffmpeg -y -loglevel error -f lavfi -i "anoisesrc=d=0.5:c=pink:a=0.8" \
+  -af "bandpass=f=1400:w=900,afade=t=in:st=0:d=0.05,afade=t=out:st=0.05:d=0.45,volume=1.4" whoosh2.wav
+rm -f barD.wav barE.wav seqB.txt seqB.wav snare.wav subB.wav

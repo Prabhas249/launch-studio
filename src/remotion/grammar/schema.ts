@@ -16,21 +16,26 @@ export const GrammarBrand = z.object({
 
 const ColdOpen = z.object({
   type: z.literal("COLD_OPEN"),
-  // one word/phrase per beat; last accent word explodes through camera
+  variant: z.enum(["word_per_beat", "marquee"]).default("word_per_beat"),
+  // word_per_beat: one word per beat, last accent word explodes through camera
+  // marquee: the phrase as one giant line sliding across the frame (ListenLabs)
   words: z.array(z.object({ t: z.string(), accent: z.boolean() })).min(2).max(6),
   kicker: z.string().describe("tiny uppercase context line"),
 });
 
 const PainTypography = z.object({
   type: z.literal("PAIN_TYPOGRAPHY"),
+  variant: z.enum(["circle_swap", "strike_list"]).default("circle_swap"),
   label: z.string(),
   lines: z.array(z.string()).min(2).max(3),
 });
 
 const ProductHero = z.object({
   type: z.literal("PRODUCT_HERO"),
+  variant: z.enum(["window_slam", "bento"]).default("window_slam"),
   headline: z.string().describe('e.g. "Meet Leadverse." — accent goes on the substring after |'),
   screenshot: z.string().describe("staticFile path"),
+  extraShots: z.array(z.string()).max(2).default([]).describe("bento variant: 2 more shots"),
   chip: z.string(),
 });
 
@@ -44,7 +49,9 @@ const FeatureWalk = z.object({
 
 const StatCallout = z.object({
   type: z.literal("STAT_CALLOUT"),
+  variant: z.enum(["odometer", "repeat_stack"]).default("odometer"),
   value: z.number().describe("REAL number from the site — never invented"),
+  prefix: z.string().default("").describe('e.g. "$" or ""'),
   suffix: z.string().describe('e.g. "businesses already listening"'),
 });
 
@@ -76,8 +83,15 @@ export const ARCHETYPE_BARS: Record<string, number> = {
 
 export const FilmSchema = z.object({
   brand: GrammarBrand,
+  stylePack: z.enum(["editorial_cream", "dark_terminal"]).default("editorial_cream"),
+  music: z.enum(["pulse", "heavy"]).default("pulse"),
   scenes: z.array(SceneSchema).min(4).max(8),
 });
+
+export const STYLE_PACKS: Record<string, { bg: string; fg: string; muted: string }> = {
+  editorial_cream: { bg: "#F4EFE4", fg: "#101010", muted: "#8A867A" },
+  dark_terminal: { bg: "#0B0B0D", fg: "#F2F0EA", muted: "#71716B" },
+};
 
 export type Film = z.infer<typeof FilmSchema>;
 export type Scene = z.infer<typeof SceneSchema>;
@@ -89,9 +103,12 @@ export const leadverseFilmJson: Film = {
     domain: "leadverse.ai",
     colors: { bg: "#F4EFE4", fg: "#101010", accent: "#23C45E", muted: "#8A867A" },
   },
+  stylePack: "editorial_cream",
+  music: "pulse",
   scenes: [
     {
       type: "COLD_OPEN",
+      variant: "word_per_beat",
       words: [
         { t: "Your", accent: false },
         { t: "next", accent: false },
@@ -103,13 +120,16 @@ export const leadverseFilmJson: Film = {
     },
     {
       type: "PAIN_TYPOGRAPHY",
+      variant: "circle_swap",
       label: "The old way",
       lines: ["Scrolling subreddits for hours", "Cold DMs nobody answers"],
     },
     {
       type: "PRODUCT_HERO",
+      variant: "window_slam",
       headline: "Meet Lead|verse.",
       screenshot: "shots/leadverse/leadverse_hero.png",
+      extraShots: [],
       chip: "on autopilot 🤖",
     },
     {
@@ -120,7 +140,7 @@ export const leadverseFilmJson: Film = {
         { screenshot: "shots/leadverse/leadverse_hero.png", title: "Reply while the thread is hot" },
       ],
     },
-    { type: "STAT_CALLOUT", value: 6850, suffix: "businesses already listening" },
+    { type: "STAT_CALLOUT", variant: "odometer", value: 6850, prefix: "", suffix: "businesses already listening" },
     {
       type: "CTA_COMPRESSION",
       headline: "Find people looking\nfor what you offer.",

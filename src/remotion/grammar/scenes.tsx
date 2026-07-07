@@ -85,6 +85,269 @@ const ColdOpen: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: 
   );
 };
 
+// ————— COLD_OPEN variant: marquee (giant line sliding across, ListenLabs) —————
+const ColdOpenMarquee: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const phrase = scene.words.map((w) => w.t.replace(/[.!]$/, "")).join(" ");
+  const x = interpolate(f, [0, duration], [8, -55], { easing: Easing.linear });
+  const beatPulse = 1 + Math.max(0, 1 - ((f % BEAT) / 5)) * 0.012;
+  const kickerIn = snapIn(f, BEAT, 8);
+  const boom = explode(f, duration - 8, 8);
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", overflow: "hidden" }}>
+      <div
+        style={{
+          position: "absolute",
+          whiteSpace: "nowrap",
+          fontFamily: TIGHT,
+          fontWeight: 900,
+          fontSize: 340,
+          letterSpacing: "-0.05em",
+          color: brand.colors.fg,
+          transform: `translateX(${x}%) scale(${beatPulse * (1 + boom * 10)})`,
+          filter: boom > 0 ? `blur(${boom * 12}px)` : "none",
+          top: 300,
+        }}
+      >
+        {phrase.split(" ").map((w, i) => {
+          const accent = scene.words.find((sw) => sw.t.replace(/[.!]$/, "") === w)?.accent;
+          return (
+            <span key={i} style={{ color: accent ? brand.colors.accent : undefined, marginRight: "0.24em" }}>
+              {w}
+            </span>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 110,
+          left: 110,
+          fontFamily: BODY,
+          fontWeight: 500,
+          fontSize: 30,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: brand.colors.muted,
+          opacity: kickerIn * 0.9,
+        }}
+      >
+        {scene.kicker}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ————— PAIN variant: strike_list (lines struck through by accent sweeps) —————
+const PainStrikeList: React.FC<{ scene: Extract<Scene, { type: "PAIN_TYPOGRAPHY" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const strikeStart = Math.round(duration * 0.55);
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center" }}>
+      <div style={{ padding: "0 160px" }}>
+        <div
+          style={{
+            fontFamily: BODY,
+            fontWeight: 600,
+            fontSize: 26,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: brand.colors.muted,
+            marginBottom: 48,
+            opacity: snapIn(f, 0, 8),
+          }}
+        >
+          {scene.label}
+        </div>
+        {scene.lines.map((line, i) => {
+          const p = spring({ frame: f, fps, delay: 6 + i * BEAT, config: { damping: 200, mass: 0.7, stiffness: 160 } });
+          const strike = interpolate(f - strikeStart - i * 3, [0, 10], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+            easing: SNAP,
+          });
+          return (
+            <div key={i} style={{ marginBottom: 26 }}>
+              <span
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  fontFamily: TIGHT,
+                  fontWeight: 800,
+                  fontSize: 76,
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.15,
+                  color: brand.colors.fg,
+                  opacity: p * (1 - strike * 0.55),
+                  transform: `translateX(${(1 - p) * -40}px)`,
+                }}
+              >
+                {line}
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "52%",
+                    height: 7,
+                    width: `${strike * 100}%`,
+                    backgroundColor: brand.colors.accent,
+                    borderRadius: 4,
+                  }}
+                />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ————— PRODUCT_HERO variant: bento (asymmetric multi-shot grid) —————
+const ProductHeroBento: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const nameIn = snapIn(f, 2, 8);
+  const cards = [
+    { src: scene.screenshot, x: 100, y: 300, w: 1050, from: [0, 700] as const, delay: BEAT },
+    { src: scene.extraShots[0] ?? scene.screenshot, x: 1200, y: 300, w: 620, from: [700, 0] as const, delay: BEAT + 5 },
+    { src: scene.extraShots[1] ?? scene.screenshot, x: 1200, y: 720, w: 620, from: [700, 300] as const, delay: BEAT + 10 },
+  ];
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, overflow: "hidden" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 90,
+          left: 100,
+          fontFamily: TIGHT,
+          fontWeight: 900,
+          fontSize: 96,
+          letterSpacing: "-0.045em",
+          color: brand.colors.fg,
+          opacity: nameIn,
+          transform: `translateY(${(1 - nameIn) * 50}px)`,
+          zIndex: 2,
+        }}
+      >
+        {scene.headline.split("|")[0]}
+        {scene.headline.split("|")[1] ? <span style={{ color: brand.colors.accent }}>{scene.headline.split("|")[1]}</span> : null}
+      </div>
+      {cards.map((c, i) => {
+        const p = spring({ frame: f, fps, delay: c.delay, config: { damping: 16, mass: 0.8, stiffness: 140 } });
+        const drift2 = drift(f, 0, -14 - i * 6, duration);
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: c.x,
+              top: c.y,
+              width: c.w,
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 40px 120px rgba(0,0,0,0.5), 0 0 0 1px rgba(128,128,128,0.15)",
+              opacity: p > 0.02 ? 1 : 0,
+              transform: `translate(${(1 - p) * c.from[0]}px, ${(1 - p) * c.from[1] + drift2}px)`,
+            }}
+          >
+            <Img src={staticFile(c.src)} style={{ width: "100%", display: "block" }} />
+          </div>
+        );
+      })}
+      <div
+        style={{
+          position: "absolute",
+          top: 130,
+          right: 140,
+          padding: "16px 30px",
+          borderRadius: 999,
+          backgroundColor: brand.colors.accent,
+          color: "#fff",
+          fontFamily: BODY,
+          fontWeight: 600,
+          fontSize: 27,
+          zIndex: 3,
+          opacity: spring({ frame: f, fps, delay: BEAT * 3, config: SPRING_LOGO }),
+          transform: "rotate(2.5deg)",
+        }}
+      >
+        {scene.chip}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ————— STAT variant: repeat_stack (ListenLabs $100,000,000 wall) —————
+const StatRepeatStack: React.FC<{ scene: Extract<Scene, { type: "STAT_CALLOUT" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const text = `${scene.prefix}${scene.value.toLocaleString("en-US")}`;
+  const rows = 6;
+  const suffixIn = snapIn(f, BEAT * 2, 8);
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", overflow: "hidden" }}>
+      {Array.from({ length: rows }).map((_, i) => {
+        const p = snapIn(f, i * 4, 8);
+        const isHero = i === Math.floor(rows / 2);
+        const slide = drift(f, 0, (i % 2 === 0 ? -1 : 1) * 60, duration);
+        return (
+          <div
+            key={i}
+            style={{
+              fontFamily: TIGHT,
+              fontWeight: 900,
+              fontSize: 190,
+              lineHeight: 0.92,
+              letterSpacing: "-0.04em",
+              whiteSpace: "nowrap",
+              color: isHero ? brand.colors.accent : "transparent",
+              WebkitTextStroke: isHero ? undefined : `2px ${brand.colors.fg}33`,
+              opacity: p,
+              transform: `translateX(${(1 - p) * (i % 2 === 0 ? -160 : 160) + slide}px)`,
+              textAlign: "center",
+            }}
+          >
+            {`${text} ${text} ${text}`}
+          </div>
+        );
+      })}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 90,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontFamily: BODY,
+          fontWeight: 600,
+          fontSize: 38,
+          color: brand.colors.fg,
+          opacity: suffixIn,
+        }}
+      >
+        {scene.suffix}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
 // ————— PAIN_TYPOGRAPHY (persistent container) —————
 const PainTypography: React.FC<{
   scene: Extract<Scene, { type: "PAIN_TYPOGRAPHY" }>;
@@ -378,15 +641,31 @@ const CtaCompression: React.FC<{
 export const SceneRenderer: React.FC<{ scene: Scene; brand: Brand; duration: number }> = ({ scene, brand, duration }) => {
   switch (scene.type) {
     case "COLD_OPEN":
-      return <ColdOpen scene={scene} brand={brand} duration={duration} />;
+      return scene.variant === "marquee" ? (
+        <ColdOpenMarquee scene={scene} brand={brand} duration={duration} />
+      ) : (
+        <ColdOpen scene={scene} brand={brand} duration={duration} />
+      );
     case "PAIN_TYPOGRAPHY":
-      return <PainTypography scene={scene} brand={brand} duration={duration} />;
+      return scene.variant === "strike_list" ? (
+        <PainStrikeList scene={scene} brand={brand} duration={duration} />
+      ) : (
+        <PainTypography scene={scene} brand={brand} duration={duration} />
+      );
     case "PRODUCT_HERO":
-      return <ProductHero scene={scene} brand={brand} duration={duration} />;
+      return scene.variant === "bento" ? (
+        <ProductHeroBento scene={scene} brand={brand} duration={duration} />
+      ) : (
+        <ProductHero scene={scene} brand={brand} duration={duration} />
+      );
     case "FEATURE_WALK":
       return <FeatureWalk scene={scene} brand={brand} duration={duration} />;
     case "STAT_CALLOUT":
-      return <StatCallout scene={scene} brand={brand} duration={duration} />;
+      return scene.variant === "repeat_stack" ? (
+        <StatRepeatStack scene={scene} brand={brand} duration={duration} />
+      ) : (
+        <StatCallout scene={scene} brand={brand} duration={duration} />
+      );
     case "CTA_COMPRESSION":
       return <CtaCompression scene={scene} brand={brand} duration={duration} />;
   }

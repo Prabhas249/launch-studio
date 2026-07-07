@@ -28,17 +28,23 @@ NON-NEGOTIABLE RULES:
 3. VOICE: short, punchy, second person. Hook words: 4-6 items, one word/short phrase each, the LAST one gets accent=true and must be the sharpest word.
 4. Screenshots: choose from factsheet.shots — hero for PRODUCT_HERO, inner/product states for FEATURE_WALK.
 
-5. STYLE PACK IS LOCKED (Editorial Cream): colors.bg is ALWAYS "#F4EFE4", colors.fg ALWAYS "#101010", colors.muted ALWAYS "#8A867A". You choose ONLY the accent: the most vivid, saturated brand color from colorCandidates as hex — never near-black, never near-white, never gray.
+5. ART DIRECTION — you make real choices here, and videos for different brands MUST NOT look alike:
+   - "stylePack": "editorial_cream" (light, editorial — DEFAULT for friendly/consumer/marketing tools) or "dark_terminal" (near-black, technical — for dev tools, infra, AI/agents products).
+   - "music": "pulse" (bright four-on-floor) or "heavy" (halftime, dark, back-beat snare — fits dark_terminal).
+   - Scene variants — CHOOSE deliberately; you MUST use at least 2 non-default variants (marquee/strike_list/bento/repeat_stack) per film where they fit the story: COLD_OPEN "word_per_beat" (staccato tension) or "marquee" (one giant sliding statement). PAIN_TYPOGRAPHY "circle_swap" or "strike_list" (crossing out the old way). PRODUCT_HERO "window_slam" (one hero shot) or "bento" (3-shot grid — needs extraShots). STAT_CALLOUT "odometer" (counting up) or "repeat_stack" (the number repeated as a giant type wall — best for money/impressive counts).
+   - Accent: the most vivid, saturated brand color from colorCandidates/vividColor as hex — never near-black, never near-white, never gray.
 
 OUTPUT: raw JSON only, no markdown fences, exactly this shape:
 {
-  "brand": { "name": str, "domain": str, "colors": { "bg": "#F4EFE4", "fg": "#101010", "accent": <vivid hex from colorCandidates>, "muted": "#8A867A" } },
+  "brand": { "name": str, "domain": str, "colors": { "bg": "#F4EFE4", "fg": "#101010", "accent": <vivid hex>, "muted": "#8A867A" } },
+  "stylePack": "editorial_cream" | "dark_terminal",
+  "music": "pulse" | "heavy",
   "scenes": [
-    { "type": "COLD_OPEN", "words": [{"t": str, "accent": bool}...], "kicker": str },
-    { "type": "PAIN_TYPOGRAPHY", "label": str, "lines": [str, str] },
-    { "type": "PRODUCT_HERO", "headline": "Meet X|suffix." , "screenshot": str, "chip": str },
+    { "type": "COLD_OPEN", "variant": "word_per_beat"|"marquee", "words": [{"t": str, "accent": bool}...], "kicker": str },
+    { "type": "PAIN_TYPOGRAPHY", "variant": "circle_swap"|"strike_list", "label": str, "lines": [str, str] },
+    { "type": "PRODUCT_HERO", "variant": "window_slam"|"bento", "headline": "Meet X|suffix.", "screenshot": str, "extraShots": [str, str] (bento only, else []), "chip": str },
     { "type": "FEATURE_WALK", "steps": [{"screenshot": str, "title": str} x3] },
-    { "type": "STAT_CALLOUT", "value": number, "suffix": str },
+    { "type": "STAT_CALLOUT", "variant": "odometer"|"repeat_stack", "value": number, "prefix": ""|"$"|"₹", "suffix": str },
     { "type": "CTA_COMPRESSION", "headline": str (may contain \\n), "domain": str, "sub": str }
   ]
 }`;
