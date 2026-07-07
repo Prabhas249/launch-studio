@@ -1,0 +1,91 @@
+// BRAIN step 2 — the creative director.
+// Usage: GEMINI_API_KEY=... node scripts/director.mjs leadverse.ai
+// Reads runs/<domain>/factsheet.json → writes runs/<domain>/film.json
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+const domain = process.argv[2];
+if (!domain) {
+  console.error("usage: node scripts/director.mjs <domain>");
+  process.exit(1);
+}
+const key = process.env.GEMINI_API_KEY;
+if (!key) {
+  console.error("GEMINI_API_KEY not set");
+  process.exit(1);
+}
+const MODEL = process.env.DIRECTOR_MODEL ?? "gemini-3-flash";
+const runDir = join("runs", domain);
+const factsheet = JSON.parse(readFileSync(join(runDir, "factsheet.json"), "utf8"));
+
+const SYSTEM = `You are the creative director for 30-second editorial motion-design launch videos (the Skale/ListenLabs genre on X).
+You write a scene script as JSON. You NEVER animate — a render engine executes your JSON.
+
+NON-NEGOTIABLE RULES:
+1. SPECIFICITY IS THE VETO RULE. Every text you write must contain a real number, a real feature name, or a real named platform FROM THE FACTSHEET. Banned forever: "powered by AI", "streamline", "boost productivity", "save time", "revolutionize", any claim not grounded in the factsheet. If you invent a number, the video is rejected.
+2. STORY ARC: hook (a sharp, specific tension — never the product name) → pain (the old way, 2-3 concrete behaviors) → reveal → 2-3 features as user actions → one REAL stat → CTA using the site's own strongest phrase.
+3. VOICE: short, punchy, second person. Hook words: 4-6 items, one word/short phrase each, the LAST one gets accent=true and must be the sharpest word.
+4. Screenshots: choose from factsheet.shots — hero for PRODUCT_HERO, inner/product states for FEATURE_WALK.
+
+OUTPUT: raw JSON only, no markdown fences, exactly this shape:
+{
+  "brand": { "name": str, "domain": str, "colors": { "bg": "#F4EFE4", "fg": "#101010", "accent": <from colorCandidates, as hex>, "muted": "#8A867A" } },
+  "scenes": [
+    { "type": "COLD_OPEN", "words": [{"t": str, "accent": bool}...], "kicker": str },
+    { "type": "PAIN_TYPOGRAPHY", "label": str, "lines": [str, str] },
+    { "type": "PRODUCT_HERO", "headline": "Meet X|suffix." , "screenshot": str, "chip": str },
+    { "type": "FEATURE_WALK", "steps": [{"screenshot": str, "title": str} x3] },
+    { "type": "STAT_CALLOUT", "value": number, "suffix": str },
+    { "type": "CTA_COMPRESSION", "headline": str (may contain \\n), "domain": str, "sub": str }
+  ]
+}`;
+
+const body = {
+  systemInstruction: { parts: [{ text: SYSTEM }] },
+  contents: [
+    {
+      role: "user",
+      parts: [
+        {
+          text: `FACTSHEET:\n${JSON.stringify(
+            {
+              meta: factsheet.meta,
+              colorCandidates: factsheet.colorCandidates,
+              shots: factsheet.shots,
+              specificity: factsheet.specificity,
+              siteText: factsheet.rawText.slice(0, 12000),
+            },
+            null,
+            1,
+          )}\n\nWrite the film JSON.`,
+        },
+      ],
+    },
+  ],
+  generationConfig: { temperature: 0.8, responseMimeType: "application/json" },
+};
+
+const res = await fetch(
+  `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+  { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+);
+if (!res.ok) {
+  console.error(`Gemini ${res.status}: ${await res.text()}`);
+  process.exit(1);
+}
+const data = await res.json();
+const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+if (!text) {
+  console.error("No text in response:", JSON.stringify(data).slice(0, 500));
+  process.exit(1);
+}
+const film = JSON.parse(text);
+
+// Basic contract checks (full zod validation happens in the app)
+const types = film.scenes.map((s) => s.type);
+const required = ["COLD_OPEN", "PRODUCT_HERO", "STAT_CALLOUT", "CTA_COMPRESSION"];
+for (const t of required) if (!types.includes(t)) throw new Error(`director omitted ${t}`);
+
+writeFileSync(join(runDir, "film.json"), JSON.stringify(film, null, 2));
+console.log(`film: ${runDir}/film.json`);
+console.log(`Render: npx remotion render GrammarFilm out/${domain}.mp4 --props=runs/${domain}/film.json`);
