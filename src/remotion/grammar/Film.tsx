@@ -18,11 +18,32 @@ export const GrammarFilm: React.FC<Film> = (film) => {
   const durations = film.scenes.map((s) => ARCHETYPE_BARS[s.type] * BAR);
   const starts = durations.reduce<number[]>((acc, d, i) => [...acc, (acc[i - 1] ?? 0) + (durations[i - 1] ?? 0)], []);
   const heroIdx = film.scenes.findIndex((s) => s.type === "PRODUCT_HERO");
-  const bed = film.music === "heavy" ? "audio/arranged-heavy.wav" : "audio/arranged.wav";
+  const BEDS: Record<string, string> = {
+    pulse: "audio/arranged.wav",
+    heavy: "audio/arranged-heavy.wav",
+    adrenaline: "audio/arranged-adrenaline.wav",
+  };
+  const bed = BEDS[film.music ?? "pulse"];
+  const hasVo = (film.voTracks ?? []).some(Boolean);
+  // Sidechain pump: bed ducks hard on every beat and breathes back (ad energy),
+  // plus overall duck when a voiceover is present.
+  const BEAT = 15;
+  const bedVolume = (f: number) => {
+    const inBeat = f % BEAT;
+    const pump = 0.62 + 0.38 * Math.min(1, inBeat / 9);
+    return (hasVo ? 0.5 : 0.9) * pump;
+  };
 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg }}>
-      <Audio src={staticFile(bed)} volume={0.9} />
+      <Audio src={staticFile(bed)} volume={bedVolume} />
+      {(film.voTracks ?? []).map((vo, i) =>
+        vo ? (
+          <Sequence key={`vo-${i}`} from={starts[i] + 4} durationInFrames={durations[i]}>
+            <Audio src={staticFile(vo)} volume={1} />
+          </Sequence>
+        ) : null,
+      )}
       {starts.slice(1).map((cut, i) => (
         <Sequence key={`wh-${i}`} from={cut - 7} durationInFrames={20}>
           <Audio src={staticFile(i % 2 === 0 ? "audio/whoosh.wav" : "audio/whoosh2.wav")} volume={0.5} />

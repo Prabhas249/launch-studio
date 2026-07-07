@@ -1,8 +1,10 @@
 import React from "react";
 import {
   AbsoluteFill,
+  Audio,
   Easing,
   Img,
+  Sequence,
   Series,
   interpolate,
   spring,
@@ -137,6 +139,75 @@ const ColdOpenMarquee: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; 
         }}
       >
         {scene.kicker}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ————— COLD_OPEN variant: terminal (console types the hook, keystroke sounds) —————
+const ColdOpenTerminal: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: Brand; duration: number }> = ({
+  scene,
+  brand,
+  duration,
+}) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const winIn = spring({ frame: f, fps, delay: 2, config: { damping: 16, mass: 0.8, stiffness: 150 } });
+  const phrase = scene.words.map((w) => w.t).join(" ");
+  const CHAR_FRAMES = 2; // ~60ms per char
+  const typeStart = 14;
+  const charsShown = Math.max(0, Math.floor((f - typeStart) / CHAR_FRAMES));
+  const typed = phrase.slice(0, charsShown);
+  const accentWords = new Set(scene.words.filter((w) => w.accent).map((w) => w.t));
+  const cursorOn = Math.floor(f / 8) % 2 === 0;
+  const done = charsShown >= phrase.length;
+  const boom = explode(f, duration - 8, 8);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
+      {/* keystroke ticks — one per typed character while typing */}
+      {Array.from({ length: phrase.length }).map((_, i) => {
+        const at = typeStart + i * CHAR_FRAMES;
+        if (phrase[i] === " ") return null;
+        return (
+          <Sequence key={`kt-${i}`} from={at} durationInFrames={4}>
+            <Audio src={staticFile("audio/keytick.wav")} volume={0.35 + ((i * 37) % 10) / 40} />
+          </Sequence>
+        );
+      })}
+      <div
+        style={{
+          width: 1400,
+          borderRadius: 16,
+          overflow: "hidden",
+          backgroundColor: "#0D0D11",
+          border: "1px solid #ffffff1c",
+          boxShadow: "0 70px 140px -30px rgba(0,0,0,0.75)",
+          opacity: winIn > 0.02 ? 1 : 0,
+          transform: `translateY(${(1 - winIn) * 300}px) rotateX(${(1 - winIn) * 14}deg) scale(${1 + boom * 8})`,
+          filter: boom > 0 ? `blur(${boom * 10}px)` : "none",
+        }}
+      >
+        <div style={{ height: 52, display: "flex", alignItems: "center", gap: 8, padding: "0 20px", backgroundColor: "#16161c", borderBottom: "1px solid #ffffff0d" }}>
+          {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
+            <div key={c} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: c }} />
+          ))}
+          <div style={{ marginLeft: 14, fontFamily: "Menlo, monospace", fontSize: 17, color: "#8A867A" }}>~ / launch</div>
+        </div>
+        <div style={{ padding: "44px 48px 56px", fontFamily: "Menlo, monospace", fontSize: 44, lineHeight: 1.5, minHeight: 260 }}>
+          <span style={{ color: brand.colors.accent }}>➜ </span>
+          {typed.split(" ").map((w, i) => (
+            <span key={i} style={{ color: accentWords.has(w) ? brand.colors.accent : "#F2F0EA", marginRight: "0.55ch" }}>
+              {w}
+            </span>
+          ))}
+          <span style={{ opacity: cursorOn ? 1 : 0, color: brand.colors.accent }}>▌</span>
+          {done ? (
+            <div style={{ marginTop: 28, fontSize: 26, color: "#8A867A", opacity: snapIn(f, typeStart + phrase.length * CHAR_FRAMES + 6, 8) }}>
+              {scene.kicker}
+            </div>
+          ) : null}
+        </div>
       </div>
     </AbsoluteFill>
   );
@@ -643,6 +714,8 @@ export const SceneRenderer: React.FC<{ scene: Scene; brand: Brand; duration: num
     case "COLD_OPEN":
       return scene.variant === "marquee" ? (
         <ColdOpenMarquee scene={scene} brand={brand} duration={duration} />
+      ) : scene.variant === "terminal" ? (
+        <ColdOpenTerminal scene={scene} brand={brand} duration={duration} />
       ) : (
         <ColdOpen scene={scene} brand={brand} duration={duration} />
       );

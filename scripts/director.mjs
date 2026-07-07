@@ -30,8 +30,8 @@ NON-NEGOTIABLE RULES:
 
 5. ART DIRECTION — you make real choices here, and videos for different brands MUST NOT look alike:
    - "stylePack": "editorial_cream" (light, editorial — DEFAULT for friendly/consumer/marketing tools) or "dark_terminal" (near-black, technical — for dev tools, infra, AI/agents products).
-   - "music": "pulse" (bright four-on-floor) or "heavy" (halftime, dark, back-beat snare — fits dark_terminal).
-   - Scene variants — CHOOSE deliberately; you MUST use at least 2 non-default variants (marquee/strike_list/bento/repeat_stack) per film where they fit the story: COLD_OPEN "word_per_beat" (staccato tension) or "marquee" (one giant sliding statement). PAIN_TYPOGRAPHY "circle_swap" or "strike_list" (crossing out the old way). PRODUCT_HERO "window_slam" (one hero shot) or "bento" (3-shot grid — needs extraShots). STAT_CALLOUT "odometer" (counting up) or "repeat_stack" (the number repeated as a giant type wall — best for money/impressive counts).
+   - "music": "pulse" (bright four-on-floor), "heavy" (halftime, dark — fits dark_terminal), or "adrenaline" (fast 16th-note ad energy — DEFAULT for bold products).
+   - Scene variants — CHOOSE deliberately; you MUST use at least 2 non-default variants (marquee/terminal/strike_list/bento/repeat_stack) per film where they fit the story: COLD_OPEN "word_per_beat" (staccato tension), "marquee" (one giant sliding statement), or "terminal" (a console types the hook with keystroke sounds — PERFECT for dev/AI/technical products; keep hook under 40 chars for terminal). PAIN_TYPOGRAPHY "circle_swap" or "strike_list" (crossing out the old way). PRODUCT_HERO "window_slam" (one hero shot) or "bento" (3-shot grid — needs extraShots). STAT_CALLOUT "odometer" (counting up) or "repeat_stack" (the number repeated as a giant type wall — best for money/impressive counts).
    - Accent: the most vivid, saturated brand color from colorCandidates/vividColor as hex — never near-black, never near-white, never gray.
 
 OUTPUT: raw JSON only, no markdown fences, exactly this shape:
@@ -40,7 +40,7 @@ OUTPUT: raw JSON only, no markdown fences, exactly this shape:
   "stylePack": "editorial_cream" | "dark_terminal",
   "music": "pulse" | "heavy",
   "scenes": [
-    { "type": "COLD_OPEN", "variant": "word_per_beat"|"marquee", "words": [{"t": str, "accent": bool}...], "kicker": str },
+    { "type": "COLD_OPEN", "variant": "word_per_beat"|"marquee"|"terminal", "words": [{"t": str, "accent": bool}...], "kicker": str },
     { "type": "PAIN_TYPOGRAPHY", "variant": "circle_swap"|"strike_list", "label": str, "lines": [str, str] },
     { "type": "PRODUCT_HERO", "variant": "window_slam"|"bento", "headline": "Meet X|suffix.", "screenshot": str, "extraShots": [str, str] (bento only, else []), "chip": str },
     { "type": "FEATURE_WALK", "steps": [{"screenshot": str, "title": str} x3] },
