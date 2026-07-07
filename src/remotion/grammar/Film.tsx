@@ -40,7 +40,12 @@ export const GrammarFilm: React.FC<Film> = (film) => {
       {(film.voTracks ?? []).map((vo, i) =>
         vo ? (
           <Sequence key={`vo-${i}`} from={starts[i] + 4} durationInFrames={durations[i]}>
-            <Audio src={staticFile(vo)} volume={1} />
+            <Audio
+              src={staticFile(vo)}
+              volume={(f) =>
+                f > durations[i] - 12 ? Math.max(0, (durations[i] - f) / 12) : 1
+              }
+            />
           </Sequence>
         ) : null,
       )}
