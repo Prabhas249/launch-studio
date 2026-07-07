@@ -13,7 +13,7 @@ if (!domain) {
   process.exit(1);
 }
 const key = process.env.GEMINI_API_KEY;
-const MODELS = [process.env.TTS_MODEL, "gemini-3.1-flash-tts", "gemini-2.5-flash-preview-tts"].filter(Boolean);
+const MODELS = [process.env.TTS_MODEL, "gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"].filter(Boolean);
 const VOICE = process.env.TTS_VOICE ?? "Charon"; // low-pitched voices resist announcer prosody
 const runDir = join("runs", domain);
 const voDir = join("public", "vo", domain);
@@ -60,9 +60,11 @@ const SCENE_CONTEXT = {
   },
 };
 
-const buildSystemInstruction = (sceneType) => {
+// TTS models reject systemInstruction ("Developer instruction is not enabled"),
+// so persona + scene + notes + transcript live in ONE structured prompt.
+const buildPrompt = (sceneType, transcript) => {
   const s = SCENE_CONTEXT[sceneType] ?? SCENE_CONTEXT.COLD_OPEN;
-  return `## AUDIO PROFILE\n${AUDIO_PROFILE}\n\n## THE SCENE\n${s.situation}\n\n### DIRECTOR'S NOTES\nStyle: ${s.style}\nPacing: ${s.pacing}\n\nSpeak ONLY the transcript the user sends. Nothing else.`;
+  return `## AUDIO PROFILE\n${AUDIO_PROFILE}\n\n## THE SCENE\n${s.situation}\n\n### DIRECTOR'S NOTES\nStyle: ${s.style}\nPacing: ${s.pacing}\n\nSpeak ONLY the lines under TRANSCRIPT. Nothing else.\n\n#### TRANSCRIPT\n${transcript}`;
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -76,8 +78,7 @@ async function tts(text, sceneType, sceneIdx) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: buildSystemInstruction(sceneType) }] },
-            contents: [{ parts: [{ text }] }],
+            contents: [{ parts: [{ text: buildPrompt(sceneType, text) }] }],
             generationConfig: {
               responseModalities: ["AUDIO"],
               speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
