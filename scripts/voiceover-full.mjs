@@ -14,7 +14,7 @@ if (!domain) {
 }
 const key = process.env.GEMINI_API_KEY;
 const MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
-const CANDIDATES = pickedVoice ? [pickedVoice] : ["Iapetus", "Schedar", "Charon"];
+const CANDIDATES = pickedVoice ? [pickedVoice] : ["Kore", "Puck", "Aoede"];
 const runDir = join("runs", domain);
 const voDir = join("public", "vo", domain);
 mkdirSync(voDir, { recursive: true });
@@ -24,15 +24,14 @@ const story = JSON.parse(readFileSync(join(runDir, "story.json"), "utf8"));
 // Full script: scenes joined with paragraph breaks (breaks = natural pauses)
 const script = story.scenes.map((s) => s.vo_line).join("\n\n");
 
-// Anti-announcer, anti-sultry direction. Plain human. One take.
 const PROMPT = `## AUDIO PROFILE
-A documentary narrator in their 30s. Plain, dry, intelligent. Talks like a real person explaining something they find genuinely interesting — never selling, never performing, never intimate.
+You are the voice of a premium startup launch film — a confident insider telling a friend about something genuinely new. Crisp. Alive. Not an announcer, not a documentary.
 
 ## HARD RULES
-- NO breathiness. NO sultry or intimate tone. NO advertising energy. NO smile-in-the-voice.
-- Even, natural pace throughout — like narrating a well-made documentary.
-- Paragraph breaks are beats: take a short natural pause at each.
-- Neutral accent, medium pitch, consistent energy start to finish.
+- Conversational, slightly urgent. Smile in the voice without sounding like an ad read.
+- Cold open is low and curious. Pain is dry, almost tired. Product reveal lifts — pitch up, pace up. Stat punches the number. Close is warm and sure.
+- Paragraph breaks are beats: short pause, then the next thought.
+- Contractions. Land the last word of each paragraph. No breathy whisper. No monotone.
 
 Speak ONLY the lines under TRANSCRIPT, as one continuous take.
 

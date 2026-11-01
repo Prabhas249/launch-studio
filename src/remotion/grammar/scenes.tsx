@@ -1,7 +1,6 @@
 import React from "react";
 import {
   AbsoluteFill,
-  Audio,
   Easing,
   Img,
   Sequence,
@@ -16,9 +15,9 @@ import { loadFont as loadInterTight } from "@remotion/google-fonts/InterTight";
 import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
 import { Trail, CameraMotionBlur } from "@remotion/motion-blur";
 import { makeTransform, rotateX, scale as tScale, translateY } from "@remotion/animation-utils";
-import { MeshGradientBg } from "../../components/remocn/mesh-gradient-bg";
 import { SlotMachineRoll } from "../../components/remocn/slot-machine-roll";
 import type { Film, Scene } from "./schema";
+import { Sfx } from "./sfx";
 import { SPRING_LOGO, SPRING_SNAPPY } from "../vault/springs";
 
 const TIGHT = loadInterTight("normal", { weights: ["700", "800", "900"] }).fontFamily;
@@ -43,13 +42,6 @@ const explode = (f: number, start: number, dur = 6) =>
   });
 const drift = (f: number, from: number, to: number, len: number) =>
   interpolate(f, [0, len], [from, to], { easing: Easing.linear });
-
-// lighten/darken a hex color by pct (-100..100)
-const shade = (hex: string, pct: number) => {
-  const n = parseInt(hex.replace("#", ""), 16);
-  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(v + (pct / 100) * (pct > 0 ? 255 - v : v))));
-  return `#${[ch((n >> 16) & 255), ch((n >> 8) & 255), ch(n & 255)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-};
 
 // ————— COLD_OPEN —————
 // AE-style baseline mask reveal: word rises out of an overflow:hidden line box.
@@ -100,6 +92,11 @@ const ColdOpen: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; brand: 
 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
+      {words.map((w, i) => (
+        <Sequence key={`wd-${i}`} from={w.at} durationInFrames={6}>
+          <Sfx src={staticFile(w.accent ? "audio/sfx/ui/pop.wav" : "audio/sfx/ui/tick.wav")} volume={w.accent ? 0.85 : 0.55} />
+        </Sequence>
+      ))}
       <Trail layers={10} lagInFrames={0.25} trailOpacity={0.75}>
         <MaskWord word={current} brand={brand} duration={duration} />
       </Trail>
@@ -206,7 +203,7 @@ const ColdOpenTerminal: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>;
         if (phrase[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={at} durationInFrames={4}>
-            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.22 + ((i * 37) % 10) / 60} />
+            <Sfx src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.22 + ((i * 37) % 10) / 60} />
           </Sequence>
         );
       })}
@@ -279,13 +276,18 @@ const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; b
         if (query[i] === " ") return null;
         return (
           <Sequence key={`kt-${i}`} from={typeStart + i * CHAR_FRAMES} durationInFrames={4}>
-            <Audio src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.2 + ((i * 41) % 10) / 60} />
+            <Sfx src={staticFile(`audio/sfx/ui/keytick${["", "2", "3"][i % 3]}.wav`)} volume={0.18 + ((i * 41) % 10) / 80} />
           </Sequence>
         );
       })}
       <Sequence from={enterAt} durationInFrames={8}>
-        <Audio src={staticFile("audio/sfx/ui/enter.wav")} volume={0.9} />
+        <Sfx src={staticFile("audio/sfx/ui/enter.wav")} volume={0.45} />
       </Sequence>
+      {[0, 1, 2].map((i) => (
+        <Sequence key={`res-${i}`} from={enterAt + 8 + i * 4} durationInFrames={5}>
+          <Sfx src={staticFile("audio/sfx/ui/tick.wav")} volume={0.18} />
+        </Sequence>
+      ))}
       <div
         style={{
           transform: `translateX(${(1 - barIn) * -1200}px) translateY(${-results * 160}px) scale(${(1 + slam * 0.02) * (1 + boom * 8)})`,
@@ -315,23 +317,35 @@ const ColdOpenSearch: React.FC<{ scene: Extract<Scene, { type: "COLD_OPEN" }>; b
           </div>
         </div>
       </div>
-      {/* results: fake result rows, the muted world of "nothing good" */}
-      <div style={{ position: "absolute", top: 560, width: 1100, opacity: results * (1 - boom) }}>
-        {[0.9, 0.75, 0.6].map((w, i) => (
-          <div
-            key={i}
-            style={{
-              height: 64,
-              width: `${w * 100}%`,
-              borderRadius: 12,
-              marginBottom: 18,
-              backgroundColor: `${brand.colors.fg}0d`,
-              border: `1px solid ${brand.colors.fg}14`,
-              transform: `translateY(${(1 - snapIn(f, enterAt + 8 + i * 4, 8)) * 40}px)`,
-              opacity: snapIn(f, enterAt + 8 + i * 4, 8),
-            }}
-          />
-        ))}
+      <div style={{ position: "absolute", top: 540, width: 1100, opacity: results * (1 - boom) }}>
+        {[
+          { title: "Hire a designer for LinkedIn + Instagram ads", meta: "agency · 2–3 weeks · $4,800" },
+          { title: "Canva templates that almost match your brand", meta: "canva.com · never quite" },
+          { title: "Grafics — on-brand ads from a URL", meta: "grafics.io · 30 seconds", hit: true },
+        ].map((row, i) => {
+          const p = snapIn(f, enterAt + 8 + i * 4, 8);
+          return (
+            <div
+              key={i}
+              style={{
+                padding: "16px 22px",
+                borderRadius: 14,
+                marginBottom: 12,
+                backgroundColor: row.hit ? `${brand.colors.accent}18` : `${brand.colors.fg}08`,
+                border: `1px solid ${row.hit ? brand.colors.accent : `${brand.colors.fg}14`}`,
+                transform: `translateY(${(1 - p) * 36}px)`,
+                opacity: p,
+              }}
+            >
+              <div style={{ fontFamily: BODY, fontWeight: 600, fontSize: 28, color: row.hit ? brand.colors.accent : brand.colors.fg }}>
+                {row.title}
+              </div>
+              <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 20, color: brand.colors.muted, marginTop: 4 }}>
+                {row.meta}
+              </div>
+            </div>
+          );
+        })}
       </div>
       <div
         style={{
@@ -369,7 +383,7 @@ const ProductHeroPhone: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, alignItems: "center", overflow: "hidden" }}>
       <Sequence from={BEAT + 10} durationInFrames={8}>
-        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.6} />
+        <Sfx src={staticFile("audio/sfx/ui/pop.wav")} volume={0.6} />
       </Sequence>
       <div
         style={{
@@ -466,7 +480,7 @@ const PainStrikeList: React.FC<{ scene: Extract<Scene, { type: "PAIN_TYPOGRAPHY"
           return (
             <div key={i} style={{ marginBottom: 26 }}>
               <Sequence from={strikeStart + i * 3} durationInFrames={6}>
-                <Audio src={staticFile("audio/sfx/ui/strike.wav")} volume={0.4} />
+                <Sfx src={staticFile("audio/sfx/ui/strike.wav")} volume={0.85} />
               </Sequence>
               <span
                 style={{
@@ -474,7 +488,7 @@ const PainStrikeList: React.FC<{ scene: Extract<Scene, { type: "PAIN_TYPOGRAPHY"
                   display: "inline-block",
                   fontFamily: TIGHT,
                   fontWeight: 800,
-                  fontSize: 76,
+                  fontSize: 110,
                   letterSpacing: "-0.03em",
                   lineHeight: 1.15,
                   color: brand.colors.fg,
@@ -519,6 +533,11 @@ const ProductHeroBento: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" 
   ];
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, overflow: "hidden" }}>
+      {cards.map((c, i) => (
+        <Sequence key={`bp-${i}`} from={c.delay + 6} durationInFrames={8}>
+          <Sfx src={staticFile("audio/sfx/ui/pop.wav")} volume={0.32} />
+        </Sequence>
+      ))}
       <div
         style={{
           position: "absolute",
@@ -526,7 +545,7 @@ const ProductHeroBento: React.FC<{ scene: Extract<Scene, { type: "PRODUCT_HERO" 
           left: 100,
           fontFamily: TIGHT,
           fontWeight: 900,
-          fontSize: 96,
+          fontSize: 118,
           letterSpacing: "-0.045em",
           color: brand.colors.fg,
           opacity: nameIn,
@@ -594,6 +613,11 @@ const StatRepeatStack: React.FC<{ scene: Extract<Scene, { type: "STAT_CALLOUT" }
   const suffixIn = snapIn(f, BEAT * 2, 8);
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", overflow: "hidden" }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Sequence key={`st-${i}`} from={i * 4} durationInFrames={5}>
+          <Sfx src={staticFile("audio/sfx/ui/tick.wav")} volume={0.22} />
+        </Sequence>
+      ))}
       {Array.from({ length: rows }).map((_, i) => {
         const p = snapIn(f, i * 4, 8);
         const isHero = i === Math.floor(rows / 2);
@@ -654,6 +678,11 @@ const PainTypography: React.FC<{
 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
+      {scene.lines.map((_, i) => (
+        <Sequence key={`ps-${i}`} from={i * per} durationInFrames={8}>
+          <Sfx src={staticFile("audio/sfx/ui/strike.wav")} volume={0.38} />
+        </Sequence>
+      ))}
       <div
         style={{
           position: "absolute",
@@ -689,7 +718,7 @@ const PainTypography: React.FC<{
           style={{
             fontFamily: TIGHT,
             fontWeight: 800,
-            fontSize: 64,
+            fontSize: 92,
             lineHeight: 1.12,
             letterSpacing: "-0.03em",
             color: brand.colors.bg,
@@ -712,7 +741,6 @@ const ProductHero: React.FC<{
 }> = ({ scene, brand, duration }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const drain = snapIn(f, 0, 10);
   const nameIn = snapIn(f, 4, 8);
   const shrink = interpolate(f, [BAR - 10, BAR + 6], [0, 1], {
     extrapolateLeft: "clamp",
@@ -724,7 +752,6 @@ const ProductHero: React.FC<{
 
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, alignItems: "center", overflow: "hidden" }}>
-      <div style={{ position: "absolute", inset: 0, backgroundColor: brand.colors.accent, transform: `translateY(${-drain * 100}%)` }} />
       <div
         style={{
           position: "absolute",
@@ -760,7 +787,7 @@ const ProductHero: React.FC<{
         </CameraMotionBlur>
       </div>
       <Sequence from={BAR * 2} durationInFrames={8}>
-        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.6} />
+        <Sfx src={staticFile("audio/sfx/ui/pop.wav")} volume={0.6} />
       </Sequence>
       <div
         style={{
@@ -847,16 +874,16 @@ const FeatureStep: React.FC<{
   return (
     <AbsoluteFill style={{ backgroundColor: brand.colors.bg, overflow: "hidden" }}>
       <Sequence from={0} durationInFrames={12}>
-        <Audio src={staticFile("audio/sfx/transition/swipe.wav")} volume={0.35} />
+        <Sfx src={staticFile("audio/sfx/transition/swipe.wav")} volume={0.28} />
       </Sequence>
       <Sequence from={clickAt} durationInFrames={6}>
-        <Audio src={staticFile("audio/sfx/ui/click.wav")} volume={0.45} />
+        <Sfx src={staticFile("audio/sfx/ui/click.wav")} volume={0.28} />
       </Sequence>
       {/* dopamine click: full-viewport radial flash (research: the detail most miss) */}
       {flash > 0 ? (
         <AbsoluteFill
           style={{
-            background: `radial-gradient(circle at 50% 62%, ${brand.colors.accent}66 0%, transparent 65%)`,
+            background: `radial-gradient(circle at 50% 62%, ${brand.colors.fg}22 0%, transparent 65%)`,
             opacity: flash,
             zIndex: 2,
             pointerEvents: "none",
@@ -894,7 +921,7 @@ const FeatureStep: React.FC<{
         </div>
       </div>
       <div style={{ position: "absolute", left: flip ? 1520 : 110, top: 400, width: 330, transform: `translateY(${(1 - inP) * 60}px)`, opacity: inP }}>
-        <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 130, color: brand.colors.accent, letterSpacing: "-0.04em", lineHeight: 1 }}>{n}</div>
+        <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 130, color: brand.colors.fg, letterSpacing: "-0.04em", lineHeight: 1 }}>{n}</div>
         <div style={{ fontFamily: TIGHT, fontWeight: 800, fontSize: 46, color: brand.colors.fg, letterSpacing: "-0.02em", lineHeight: 1.12, marginTop: 18 }}>{step.title}</div>
       </div>
     </AbsoluteFill>
@@ -935,20 +962,20 @@ const StatCallout: React.FC<{
   const inP = snapIn(f, 0, 8);
   const countFrames = Math.floor(duration * 0.7);
   return (
-    <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center" }}>
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
       {Array.from({ length: Math.floor(countFrames / 3) }).map((_, i) => (
         <Sequence key={`tk-${i}`} from={4 + i * 3} durationInFrames={3}>
-          <Audio src={staticFile("audio/sfx/ui/tick.wav")} volume={0.28} />
+          <Sfx src={staticFile("audio/sfx/ui/tick.wav")} volume={0.55} />
         </Sequence>
       ))}
       <Sequence from={countFrames} durationInFrames={8}>
-        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.7} />
+        <Sfx src={staticFile("audio/sfx/ui/pop.wav")} volume={0.7} />
       </Sequence>
-      <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 330, letterSpacing: "-0.05em", color: brand.colors.accent, lineHeight: 1, opacity: inP, fontVariantNumeric: "tabular-nums" }}>
+      <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 330, letterSpacing: "-0.05em", color: brand.colors.fg, lineHeight: 1, opacity: inP, fontVariantNumeric: "tabular-nums" }}>
         {scene.prefix}
         {n.toLocaleString("en-US")}
       </div>
-      <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 40, color: brand.colors.bg, marginTop: 26, opacity: inP * 0.92 }}>
+      <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 40, color: brand.colors.muted, marginTop: 26, opacity: inP * 0.92 }}>
         {scene.suffix}
       </div>
     </AbsoluteFill>
@@ -965,14 +992,19 @@ const StatSlot: React.FC<{ scene: Extract<Scene, { type: "STAT_CALLOUT" }>; bran
   const inP = snapIn(f, 0, 8);
   const text = `${scene.prefix}${scene.value.toLocaleString("en-US")}`;
   return (
-    <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center" }}>
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
+      {Array.from({ length: 12 }).map((_, i) => (
+        <Sequence key={`sl-${i}`} from={4 + i * 4} durationInFrames={3}>
+          <Sfx src={staticFile("audio/sfx/ui/tick.wav")} volume={0.42} />
+        </Sequence>
+      ))}
       <Sequence from={Math.floor(duration * 0.5)} durationInFrames={8}>
-        <Audio src={staticFile("audio/sfx/ui/pop.wav")} volume={0.7} />
+        <Sfx src={staticFile("audio/sfx/ui/pop.wav")} volume={0.85} />
       </Sequence>
       <div style={{ opacity: inP }}>
-        <SlotMachineRoll from={text.replace(/\d/g, "0")} to={text} fontSize={300} color={brand.colors.accent} fontWeight={900} />
+        <SlotMachineRoll from={text.replace(/\d/g, "0")} to={text} fontSize={300} color={brand.colors.fg} fontWeight={900} />
       </div>
-      <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 40, color: brand.colors.bg, marginTop: 26, opacity: inP * 0.92 }}>
+      <div style={{ fontFamily: BODY, fontWeight: 500, fontSize: 40, color: brand.colors.muted, marginTop: 26, opacity: inP * 0.92 }}>
         {scene.suffix}
       </div>
     </AbsoluteFill>
@@ -987,48 +1019,55 @@ const CtaCompression: React.FC<{
 }> = ({ scene, brand, duration }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const flood = snapIn(f, 0, 9);
-  const inP = snapIn(f, 6, 8);
-  const pill = spring({ frame: f, fps, delay: 14, config: SPRING_SNAPPY });
-  const endBit = snapIn(f, duration - 40, 8);
+  const inP = snapIn(f, 4, 10);
+  const pill = spring({ frame: f, fps, delay: 16, config: SPRING_SNAPPY });
+  const endBit = snapIn(f, duration - 36, 8);
+  const rule = snapIn(f, 10, 8);
   return (
-    <AbsoluteFill style={{ backgroundColor: brand.colors.fg, justifyContent: "center", alignItems: "center", overflow: "hidden" }}>
-      {/* expanding circle now contains a living mesh gradient of brand shades */}
-      <Sequence from={0} durationInFrames={10}>
-        <Audio src={staticFile("audio/sfx/rise/pulse_ring.wav")} volume={0.5} />
-      </Sequence>
-      <div
-        style={{
-          position: "absolute",
-          width: 2400,
-          height: 2400,
-          borderRadius: "50%",
-          overflow: "hidden",
-          transform: `scale(${flood})`,
-        }}
-      >
-        <MeshGradientBg
-          colors={[brand.colors.accent, shade(brand.colors.accent, -35), shade(brand.colors.accent, 30)]}
-          background={brand.colors.accent}
-          speed={0.6}
-          blur={90}
-        />
-      </div>
-      {Array.from({ length: Math.ceil(duration / BEAT) }).map((_, i) => {
-        const age = f - (i * BEAT + 10);
-        if (age < 0) return null;
-        const s = interpolate(age, [0, 55], [0.5, 2.3], { extrapolateRight: "clamp" });
-        const o = interpolate(age, [0, 50], [0.35, 0], { extrapolateRight: "clamp" });
-        return <div key={i} style={{ position: "absolute", width: 760, height: 760, borderRadius: "50%", border: `3px solid ${brand.colors.bg}`, opacity: o, transform: `scale(${s})` }} />;
-      })}
-      <div style={{ textAlign: "center", zIndex: 1 }}>
-        <div style={{ fontFamily: TIGHT, fontWeight: 900, fontSize: 108, letterSpacing: "-0.04em", lineHeight: 1.02, color: brand.colors.fg, opacity: inP, transform: `translateY(${(1 - inP) * 40}px)`, whiteSpace: "pre-line" }}>
+    <AbsoluteFill style={{ backgroundColor: brand.colors.bg, justifyContent: "center", alignItems: "center" }}>
+      <div style={{ textAlign: "center", zIndex: 1, maxWidth: 1500 }}>
+        <div
+          style={{
+            fontFamily: TIGHT,
+            fontWeight: 900,
+            fontSize: 96,
+            letterSpacing: "-0.045em",
+            lineHeight: 1.05,
+            color: brand.colors.fg,
+            opacity: inP,
+            transform: `translateY(${(1 - inP) * 36}px)`,
+            whiteSpace: "pre-line",
+          }}
+        >
           {scene.headline}
         </div>
-        <div style={{ display: "inline-block", marginTop: 54, padding: "20px 52px", borderRadius: 999, backgroundColor: brand.colors.fg, color: brand.colors.bg, fontFamily: BODY, fontWeight: 600, fontSize: 38, opacity: Math.min(pill, 1), transform: `translateY(${(1 - Math.min(pill, 1)) * 26}px)` }}>
+        <div
+          style={{
+            width: interpolate(rule, [0, 1], [0, 180]),
+            height: 4,
+            backgroundColor: brand.colors.accent,
+            margin: "36px auto 0",
+            borderRadius: 2,
+          }}
+        />
+        <div
+          style={{
+            display: "inline-block",
+            marginTop: 48,
+            padding: "20px 52px",
+            borderRadius: 999,
+            backgroundColor: brand.colors.fg,
+            color: brand.colors.bg,
+            fontFamily: BODY,
+            fontWeight: 600,
+            fontSize: 38,
+            opacity: Math.min(pill, 1),
+            transform: `translateY(${(1 - Math.min(pill, 1)) * 22}px)`,
+          }}
+        >
           {scene.domain}
         </div>
-        <div style={{ marginTop: 34, fontFamily: BODY, fontWeight: 500, fontSize: 27, color: brand.colors.fg, opacity: endBit * 0.85 }}>
+        <div style={{ marginTop: 32, fontFamily: BODY, fontWeight: 500, fontSize: 26, color: brand.colors.muted, opacity: endBit }}>
           {scene.sub}
         </div>
       </div>

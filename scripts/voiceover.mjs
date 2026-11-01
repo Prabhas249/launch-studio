@@ -14,11 +14,13 @@ if (!domain) {
 }
 const key = process.env.GEMINI_API_KEY;
 const MODELS = [process.env.TTS_MODEL, "gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"].filter(Boolean);
-const VOICE = process.env.TTS_VOICE ?? "Charon"; // low-pitched voices resist announcer prosody
 const runDir = join("runs", domain);
 const voDir = join("public", "vo", domain);
 mkdirSync(voDir, { recursive: true });
 const film = JSON.parse(readFileSync(join(runDir, "film.json"), "utf8"));
+const VOICE =
+  process.env.TTS_VOICE ??
+  (film.stylePack === "editorial_cream" ? "Kore" : "Charon");
 const storyPath = join(runDir, "story.json");
 const story = existsSync(storyPath) ? JSON.parse(readFileSync(storyPath, "utf8")) : null;
 
@@ -26,7 +28,7 @@ const story = existsSync(storyPath) ? JSON.parse(readFileSync(storyPath, "utf8")
 const PLANNED_S = { COLD_OPEN: 4, PAIN_TYPOGRAPHY: 4, PRODUCT_HERO: 6, FEATURE_WALK: 8, STAT_CALLOUT: 4, CTA_COMPRESSION: 6 };
 
 // The fix: situational scene context, NOT emotion tags. A person, not an announcer.
-const AUDIO_PROFILE = `A confident, thoughtful narrator — sounds like a person who genuinely understands what they're describing, not someone reading a script.`;
+const AUDIO_PROFILE = `You are the voice of a premium startup launch film — a confident insider telling a friend about something genuinely new. Crisp. Alive. Not an announcer, not a documentary.`;
 const SCENE_CONTEXT = {
   COLD_OPEN: {
     situation: `You're describing a problem you personally lived with. Not dramatizing it — just noting the obvious absurdity of how things worked before.`,
@@ -64,14 +66,28 @@ const SCENE_CONTEXT = {
 // so persona + scene + notes + transcript live in ONE structured prompt.
 const buildPrompt = (sceneType, transcript) => {
   const s = SCENE_CONTEXT[sceneType] ?? SCENE_CONTEXT.COLD_OPEN;
-  return `## AUDIO PROFILE\n${AUDIO_PROFILE}\n\n## THE SCENE\n${s.situation}\n\n### DIRECTOR'S NOTES\nStyle: ${s.style}\nPacing: ${s.pacing}\n\nSpeak ONLY the lines under TRANSCRIPT. Nothing else.\n\n#### TRANSCRIPT\n${transcript}`;
+  return `## AUDIO PROFILE
+${AUDIO_PROFILE}
+
+## THE SCENE
+${s.situation}
+
+### DIRECTOR'S NOTES
+Style: ${s.style}
+Pacing: ${s.pacing}
+Say the transcript EXACTLY ONCE. Do not repeat any word, phrase, or sentence. After the last word, stop.
+
+Speak ONLY the lines under TRANSCRIPT. Nothing else.
+
+#### TRANSCRIPT
+${transcript}`;
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function tts(text, sceneType, sceneIdx) {
   for (const model of MODELS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         {
@@ -87,7 +103,7 @@ async function tts(text, sceneType, sceneIdx) {
         },
       );
       if (res.status === 429) {
-        await sleep(8000);
+        await sleep(15000);
         continue;
       }
       if (!res.ok) break;
@@ -105,41 +121,54 @@ const measureWav = (p) =>
   parseFloat(execFileSync("ffprobe", ["-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", p]).toString());
 
 const voTracks = [];
+const voDurations = [];
 for (let i = 0; i < film.scenes.length; i++) {
   const scene = film.scenes[i];
-  // storyteller's line wins; fall back to director's vo
   const storyScene = story?.scenes?.find((s) => s.scene_type === scene.type);
   const line = (storyScene?.vo_line ?? scene.vo ?? "").trim();
   if (!line) {
     voTracks.push(null);
+    voDurations.push(null);
     continue;
   }
-  const b64 = await tts(line, scene.type, i);
-  if (!b64) {
-    voTracks.push(null);
-    continue;
-  }
-  const raw = join(voDir, `scene_${i}.pcm`);
+  const words = line.split(/\s+/).length;
+  const maxS = Math.min((PLANNED_S[scene.type] ?? 6) + 0.2, words * 0.42 + 1.4);
+  const planned = Math.max(1.8, (PLANNED_S[scene.type] ?? 6) - 0.3);
   let wav = join(voDir, `scene_${i}.wav`);
-  writeFileSync(raw, Buffer.from(b64, "base64"));
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", raw, wav]);
-  rmSync(raw);
-
-  // duration guard: compress up to 15% if the read seriously overruns the beat-locked scene
-  const planned = PLANNED_S[scene.type] ?? 6;
-  const actual = measureWav(wav);
-  if (actual - planned > 0.6) {
-    const rate = Math.min(1.15, actual / planned);
+  let actual = 0;
+  for (let take = 0; take < 3; take++) {
+    const b64 = await tts(line, scene.type, i);
+    if (!b64) break;
+    const raw = join(voDir, `scene_${i}.pcm`);
+    writeFileSync(raw, Buffer.from(b64, "base64"));
+    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", raw, wav]);
+    rmSync(raw);
+    actual = measureWav(wav);
+    if (actual <= maxS) break;
+    console.log(`  scene ${i} take ${take + 1}: ${actual.toFixed(1)}s > ${maxS.toFixed(1)}s (repeat?) — retry`);
+    await sleep(2000);
+  }
+  if (!actual) {
+    voTracks.push(null);
+    voDurations.push(null);
+    continue;
+  }
+  if (actual > planned + 0.25) {
+    const rate = Math.min(1.2, actual / planned);
     const c = wav.replace(".wav", "_c.wav");
     execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", wav, "-filter:a", `atempo=${rate.toFixed(3)}`, c]);
     wav = c;
-    console.log(`  scene ${i}: ${actual.toFixed(1)}s vs ${planned}s planned → atempo ${rate.toFixed(2)}`);
+    actual = measureWav(wav);
+    console.log(`  scene ${i}: trim to window atempo ${rate.toFixed(2)} → ${actual.toFixed(1)}s`);
   }
   voTracks.push(wav.replace(/^public\//, ""));
-  console.log(`vo scene ${i} [${VOICE}/${scene.type}]: "${line}"`);
-  await sleep(1500);
+  voDurations.push(actual);
+  console.log(`vo scene ${i} [${VOICE}/${scene.type}]: ${actual.toFixed(1)}s "${line}"`);
+  await sleep(4000);
 }
 
 film.voTracks = voTracks;
+film.voDurations = voDurations;
+film.voFull = null;
 writeFileSync(join(runDir, "film.json"), JSON.stringify(film, null, 2));
 console.log(`voiceover done: ${voTracks.filter(Boolean).length}/${film.scenes.length}, voice=${VOICE}`);

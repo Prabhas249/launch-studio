@@ -1,93 +1,94 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, Series, staticFile } from "remotion";
+import { AbsoluteFill, Audio, Sequence, Series, interpolate, staticFile } from "remotion";
 import type { Film } from "./schema";
 import { ARCHETYPE_BARS, STYLE_PACKS } from "./schema";
 import { SceneRenderer } from "./scenes";
 import { Grain, Vignette } from "../launch/fx";
-import { PixelWipe } from "../vault/PixelWipe";
+import { SfxOn } from "./sfx";
 
 const BAR = 60;
+const FPS = 30;
 
 export const filmDuration = (film: Film) =>
   film.scenes.reduce((sum, s) => sum + ARCHETYPE_BARS[s.type] * BAR, 0);
 
-// JSON in → video out. The director LLM emits Film JSON; this renders it.
+/** Frames to wait after a scene starts so picture is readable before VO. */
+const VO_IN: Record<string, number> = {
+  COLD_OPEN: 8,
+  PAIN_TYPOGRAPHY: 8,
+  PRODUCT_HERO: 10,
+  FEATURE_WALK: 8,
+  STAT_CALLOUT: 6,
+  CTA_COMPRESSION: 8,
+};
+
 export const GrammarFilm: React.FC<Film> = (film) => {
   const pack = STYLE_PACKS[film.stylePack ?? "editorial_cream"];
   const brand = { ...film.brand, colors: { ...pack, accent: film.brand.colors.accent } };
   const durations = film.scenes.map((s) => ARCHETYPE_BARS[s.type] * BAR);
   const starts = durations.reduce<number[]>((acc, d, i) => [...acc, (acc[i - 1] ?? 0) + (durations[i - 1] ?? 0)], []);
-  const heroIdx = film.scenes.findIndex((s) => s.type === "PRODUCT_HERO");
+  const total = durations.reduce((a, b) => a + b, 0);
   const BEDS: Record<string, string> = {
     pulse: "audio/music/beds/arranged.wav",
     heavy: "audio/music/beds/arranged-heavy.wav",
     adrenaline: "audio/music/beds/arranged-adrenaline.wav",
   };
-  const bed = film.musicFile ?? BEDS[film.music ?? "pulse"];
-  const hasVo = Boolean(film.voFull) || (film.voTracks ?? []).some(Boolean);
-  // BGM sits UNDER the voice (ad standard: music ~-20dB below VO ≈ 0.22 gain).
-  // Synth beds get the sidechain pump; full-mix Lyria tracks pump lightly.
-  const BEAT = 15;
-  const isRealTrack = Boolean(film.musicFile);
+  const bed = BEDS[film.music ?? "pulse"];
+  const tracks = film.voTracks ?? [];
+  const durs = film.voDurations ?? [];
+  const useSceneVo = tracks.some(Boolean);
+
+  const voWindows = film.scenes.map((scene, i) => {
+    const delay = VO_IN[scene.type] ?? 8;
+    const from = starts[i] + delay;
+    const clipFrames = durs[i] != null ? Math.max(1, Math.round(durs[i]! * FPS)) : durations[i] - delay;
+    const until = from + Math.min(clipFrames, Math.max(1, durations[i] - delay));
+    return { from, until };
+  });
+
   const bedVolume = (f: number) => {
-    const inBeat = f % BEAT;
-    const pumpDepth = isRealTrack ? 0.12 : 0.38;
-    const pump = 1 - pumpDepth + pumpDepth * Math.min(1, inBeat / 9);
-    const base = hasVo ? (isRealTrack ? 0.12 : 0.15) : isRealTrack ? 0.7 : 0.85;
-    return base * pump;
+    const fadeIn = interpolate(f, [0, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const fadeOut = interpolate(f, [total - 24, total], [1, 0.12], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const speaking = voWindows.some((w) => f >= w.from && f < w.until);
+    return (speaking ? 0.06 : 0.2) * fadeIn * fadeOut;
   };
 
   return (
-    <AbsoluteFill style={{ backgroundColor: brand.colors.bg }}>
-      <Audio src={staticFile(bed)} volume={bedVolume} />
-      {film.voFull ? (
-        <Sequence from={10}>
-          <Audio src={staticFile(film.voFull)} volume={1} />
-        </Sequence>
-      ) : (
-        (film.voTracks ?? []).map((vo, i) =>
-          vo ? (
-            <Sequence key={`vo-${i}`} from={starts[i] + 4} durationInFrames={durations[i]}>
-              <Audio
-                src={staticFile(vo)}
-                volume={(f) =>
-                  f > durations[i] - 12 ? Math.max(0, (durations[i] - f) / 12) : 1
-                }
-              />
-            </Sequence>
-          ) : null,
-        )
-      )}
-      {starts.slice(1).map((cut, i) => (
-        <Sequence key={`wh-${i}`} from={cut - 7} durationInFrames={20}>
-          <Audio src={staticFile(i % 2 === 0 ? "audio/sfx/transition/whoosh.wav" : "audio/sfx/transition/whoosh2.wav")} volume={0.4} />
-        </Sequence>
-      ))}
-      {heroIdx >= 0 ? (
-        <Sequence from={starts[heroIdx] + BAR - 4} durationInFrames={32}>
-          <Audio src={staticFile("audio/sfx/impact/impact.wav")} volume={0.85} />
-        </Sequence>
-      ) : null}
+    <SfxOn.Provider value={film.sfx !== false}>
+      <AbsoluteFill style={{ backgroundColor: brand.colors.bg }}>
+        <Audio src={staticFile(bed)} volume={bedVolume} loop={false} />
+        {useSceneVo
+          ? tracks.map((vo, i) => {
+              if (!vo) return null;
+              const delay = VO_IN[film.scenes[i]?.type] ?? 8;
+              const maxFrames = Math.max(1, durations[i] - delay);
+              const clipFrames = durs[i] != null ? Math.max(1, Math.round(durs[i]! * FPS)) : maxFrames;
+              const hold = Math.min(clipFrames, maxFrames);
+              return (
+                <Sequence key={`vo-${i}`} from={starts[i] + delay} durationInFrames={hold} layout="none">
+                  <Audio src={staticFile(vo)} volume={1} loop={false} />
+                </Sequence>
+              );
+            })
+          : film.voFull
+            ? (
+              <Sequence from={VO_IN.COLD_OPEN} layout="none">
+                <Audio src={staticFile(film.voFull)} volume={1} loop={false} />
+              </Sequence>
+            )
+            : null}
 
-      <Series>
-        {film.scenes.map((scene, i) => (
-          <Series.Sequence key={i} durationInFrames={durations[i]}>
-            <SceneRenderer scene={scene} brand={brand} duration={durations[i]} />
-          </Series.Sequence>
-        ))}
-      </Series>
+        <Series>
+          {film.scenes.map((scene, i) => (
+            <Series.Sequence key={i} durationInFrames={durations[i]}>
+              <SceneRenderer scene={scene} brand={brand} duration={durations[i]} />
+            </Series.Sequence>
+          ))}
+        </Series>
 
-      {/* pixel-wipe on alternating cuts (variety rule: never the same transition twice in a row) */}
-      {starts.slice(1).map((cut, i) =>
-        i % 2 === 1 ? (
-          <Sequence key={`pw-${i}`} from={cut - 8} durationInFrames={16}>
-            <PixelWipe color={brand.colors.fg} accent={brand.colors.accent} />
-          </Sequence>
-        ) : null,
-      )}
-
-      <Vignette strength={0.22} />
-      <Grain opacity={0.05} />
-    </AbsoluteFill>
+        <Vignette strength={0.1} />
+        <Grain opacity={0.04} />
+      </AbsoluteFill>
+    </SfxOn.Provider>
   );
 };
